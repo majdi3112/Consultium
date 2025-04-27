@@ -127,7 +127,7 @@ document.getElementById('generate-soep').addEventListener('click', async () => {
   btn.disabled = true;
 
   try {
-      const res = await fetch('https://4684-34-69-14-211.ngrok-free.app//generate-soep', {
+      const res = await fetch('https://32ef-34-69-14-211.ngrok-free.app', {
        method: 'POST',
        headers: {'Content-Type':'application/json'},
        body: JSON.stringify({ prompt: input })
