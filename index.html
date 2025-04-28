@@ -462,3 +462,116 @@ document.getElementById("whisper-btn").addEventListener("click", async function 
 </html>
 
 {% endblock %}
+
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registreren – Mediflow</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    function validatePassword() {
+      const password = document.getElementById('password').value;
+      const confirm = document.getElementById('confirm_password').value;
+      const strength = document.getElementById('password-strength');
+      const matchMsg = document.getElementById('password-match');
+
+      const strongRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,}$/;
+
+      if (!strongRegex.test(password)) {
+        strength.textContent = "❌ Minimaal 8 tekens, 1 hoofdletter, 1 kleine letter en 1 cijfer vereist.";
+        strength.className = "text-red-600 text-sm";
+      } else {
+        strength.textContent = "✅ Sterk wachtwoord!";
+        strength.className = "text-green-600 text-sm";
+      }
+
+      if (password !== confirm) {
+        matchMsg.textContent = "❌ Wachtwoorden komen niet overeen.";
+        matchMsg.className = "text-red-600 text-sm";
+      } else if (confirm.length > 0) {
+        matchMsg.textContent = "✅ Wachtwoorden matchen.";
+        matchMsg.className = "text-green-600 text-sm";
+      } else {
+        matchMsg.textContent = "";
+      }
+    }
+  </script>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col items-center justify-center py-8 font-inter select-none focus:outline-none">    <div class="w-full max-w-md bg-white p-10 rounded-2xl shadow-2xl">
+    <h1 class="text-3xl font-bold mb-8 text-center text-gray-800">Maak een account aan</h1>
+
+    <form action="/register" method="POST" enctype="multipart/form-data" class="space-y-5">
+
+      <div>
+        <label for="name" class="block text-gray-700 mb-1">Naam</label>
+        <input type="text" name="name" id="name" required
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+      </div>
+
+      <div>
+        <label for="email" class="block text-gray-700 mb-1">E-mail</label>
+        <input type="email" name="email" id="email" required
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+      </div>
+
+      <div>
+        <label for="phone" class="block text-gray-700 mb-1">Telefoonnummer (optioneel)</label>
+        <input type="tel" name="phone" id="phone"
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+      </div>
+
+      <div>
+        <label for="profile_picture" class="block text-gray-700 mb-1">Profielfoto (optioneel)</label>
+        <input type="file" name="profile_picture" id="profile_picture" accept="image/*"
+          class="w-full text-sm text-gray-500">
+      </div>
+
+      <div>
+        <label for="password" class="block text-gray-700 mb-1">Wachtwoord</label>
+        <input type="password" name="password" id="password" required oninput="validatePassword()"
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+        <div id="password-strength" class="mt-1 text-sm"></div>
+      </div>
+
+      <div>
+        <label for="confirm_password" class="block text-gray-700 mb-1">Bevestig Wachtwoord</label>
+        <input type="password" id="confirm_password" required oninput="validatePassword()"
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+        <div id="password-match" class="mt-1 text-sm"></div>
+      </div>
+
+      <div>
+        <label for="subscription" class="block text-gray-700 mb-1">Kies een abonnement</label>
+        <select name="subscription" id="subscription" required
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+          <option value="Free Trial">Gratis proefperiode (7 dagen)</option>
+          <option value="Basic">Basic – €4,99/maand</option>
+          <option value="Premium">Premium – €9,99/maand</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="payment_method" class="block text-gray-700 mb-1">Betaalmethode</label>
+        <select name="payment_method" id="payment_method" required
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+          <option value="iDEAL">iDEAL</option>
+          <option value="Bancontact">Bancontact</option>
+          <option value="Payconiq">Payconiq</option>
+        </select>
+      </div>
+
+      <button type="submit"
+        class="w-full py-3 mt-4 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition">
+        Registreren
+      </button>
+    </form>
+
+    <p class="mt-6 text-center text-gray-600">
+      Heb je al een account?
+      <a href="/login" class="text-blue-600 hover:underline font-medium">Log hier in</a>
+    </p>
+  </div>
+</body>
+</html>
