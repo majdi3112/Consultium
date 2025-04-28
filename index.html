@@ -426,4 +426,39 @@ document.getElementById("whisper-btn").addEventListener("click", async function 
     }
   </script>
 
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Inloggen – Mediflow</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 h-screen flex items-center justify-center font-inter">
+  <div class="w-full max-w-md bg-white p-8 rounded-lg shadow-lg">
+    <h1 class="text-2xl font-semibold mb-6 text-center">Log in op je account</h1>
+    <form action="/login" method="POST" class="space-y-4">
+      <div>
+        <label for="email" class="block text-gray-700">E-mail</label>
+        <input type="email" name="email" id="email" required
+               class="w-full mt-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"/>
+      </div>
+      <div>
+        <label for="password" class="block text-gray-700">Wachtwoord</label>
+        <input type="password" name="password" id="password" required
+               class="w-full mt-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"/>
+      </div>
+      <button type="submit"
+              class="w-full py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">
+        Inloggen
+      </button>
+    </form>
+    <p class="mt-4 text-center text-gray-600">
+      Nog geen account?
+      <a href="/register" class="text-blue-600 hover:underline">Registreer hier</a>
+    </p>
+  </div>
+</body>
+</html>
+
 {% endblock %}
