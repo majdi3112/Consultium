@@ -5,7 +5,39 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Inloggen – Mediflow</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    const backendURL = "https://2354-104-196-218-235.ngrok-free.app"; // 🔥 Jouw ngrok-link hier ingevuld
+
+    async function handleLogin(event) {
+      event.preventDefault();
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      try {
+        const response = await fetch(backendURL + "/api/login", {  <!-- 🔥 Belangrijk -->
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include", // 🔥 Nodig voor sessies
+          body: JSON.stringify({ email, password }),
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+          alert("❌ Onjuiste e-mail of wachtwoord.");
+        } else {
+          sessionStorage.setItem("user_logged_in", "true");
+          window.location.href = "home.html";
+        }
+
+      } catch (error) {
+        console.error("Loginfout:", error);
+        alert("⚠️ Kon geen verbinding maken met de server.");
+      }
+    }
+  </script>
 </head>
+
 <body class="bg-gray-50 h-screen flex items-center justify-center font-inter">
   <div class="w-full max-w-md bg-white p-8 rounded-lg shadow-lg">
     <h1 class="text-2xl font-semibold mb-6 text-center">Log in op jouw account</h1>
@@ -30,35 +62,5 @@
       <a href="/Consultium/register.html" class="text-blue-600 hover:underline">Registreer hier</a>
     </p>
   </div>
-
-  <script>
-    async function handleLogin(event) {
-      event.preventDefault();
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-
-      try {
-        const response = await fetch("/api/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ email, password }),
-        });
-
-        const data = await response.json();
-
-        if (data.error) {
-          alert("❌ Onjuiste e-mail of wachtwoord.");
-        } else {
-          sessionStorage.setItem("user_logged_in", "true");
-          window.location.href = "home.html";
-        }
-
-      } catch (error) {
-        console.error("Loginfout:", error);
-        alert("⚠️ Kon geen verbinding maken met de server.");
-      }
-    }
-  </script>
 </body>
 </html>
