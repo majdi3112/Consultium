@@ -6,66 +6,42 @@
   <title>Registreren – Mediflow</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    const backendURL = "https://0a3c-104-196-218-235.ngrok-free.app"; // 🔥 Jouw nieuwe ngrok-link
+  const backendURL = "https://0a3c-104-196-218-235.ngrok-free.app";
 
-    function validatePassword() {
-      const password = document.getElementById('password').value;
-      const confirm = document.getElementById('confirm_password').value;
-      const strength = document.getElementById('password-strength');
-      const matchMsg = document.getElementById('password-match');
+  async function handleRegister(event) {
+    event.preventDefault();
 
-      const strongRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,}$/;
+    const formData = new FormData();
+    formData.append("name", document.getElementById("name").value);
+    formData.append("email", document.getElementById("email").value);
+    formData.append("phone", document.getElementById("phone").value);
+    formData.append("password", document.getElementById("password").value);
+    formData.append("profile_picture", document.getElementById("profile_picture").files[0]);
+    formData.append("subscription", document.getElementById("subscription").value);
+    formData.append("payment_method", document.getElementById("payment_method").value);
 
-      if (!strongRegex.test(password)) {
-        strength.textContent = "❌ Minimaal 8 tekens, 1 hoofdletter, 1 kleine letter en 1 cijfer vereist.";
-        strength.className = "text-red-600 text-sm";
+    try {
+      const response = await fetch(backendURL + "/register", {
+        method: "POST",
+        body: formData,
+        credentials: "include" // ✅ voor cookies/sessies
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alert("✅ Registratie gelukt!");
+        window.location.href = "index.html";
       } else {
-        strength.textContent = "✅ Sterk wachtwoord!";
-        strength.className = "text-green-600 text-sm";
+        alert(result.error || "❌ Registratie mislukt.");
       }
-
-      if (password !== confirm) {
-        matchMsg.textContent = "❌ Wachtwoorden komen niet overeen.";
-        matchMsg.className = "text-red-600 text-sm";
-      } else if (confirm.length > 0) {
-        matchMsg.textContent = "✅ Wachtwoorden matchen.";
-        matchMsg.className = "text-green-600 text-sm";
-      } else {
-        matchMsg.textContent = "";
-      }
+    } catch (err) {
+      alert("⚠️ Kon geen verbinding maken met de server.");
+      console.error(err);
     }
+  }
+</script>
 
-    async function handleRegister(event) {
-      event.preventDefault();
-
-      const formData = new FormData();
-      formData.append("name", document.getElementById("name").value);
-      formData.append("email", document.getElementById("email").value);
-      formData.append("phone", document.getElementById("phone").value);
-      formData.append("password", document.getElementById("password").value);
-      formData.append("profile_picture", document.getElementById("profile_picture").files[0]);
-      formData.append("subscription", document.getElementById("subscription").value);
-      formData.append("payment_method", document.getElementById("payment_method").value);
-
-      try {
-        const response = await fetch(backendURL + "/register", {
-          method: "POST",
-          body: formData,
-          credentials: "include" // ⬅️ belangrijk voor sessies
-        });
-
-        if (response.redirected) {
-          window.location.href = response.url;
-        } else {
-          const text = await response.text();
-          alert("❌ " + text);
-        }
-      } catch (err) {
-        console.error(err);
-        alert("⚠️ Kon geen verbinding maken met de server.");
-      }
-    }
-  </script>
 </head>
 
 <body class="bg-gray-50 min-h-screen flex flex-col items-center justify-center py-8 font-inter select-none focus:outline-none">
