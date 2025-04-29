@@ -141,7 +141,7 @@ document.getElementById('generate-soep').addEventListener('click', async () => {
   btn.disabled = true;
 
   try {
-      const res = await fetch('https://0a3c-104-196-218-235.ngrok-free.app', {
+      const res = await fetch('https://0a3c-104-196-218-235.ngrok-free.app/generate-soep', {
        method: 'POST',
        headers: {'Content-Type':'application/json'},
        body: JSON.stringify({ prompt: input })
@@ -359,8 +359,15 @@ document.getElementById("whisper-btn").addEventListener("click", async function 
       const inputField = document.getElementById("chat-input");
       const chatMessages = document.getElementById("chat-messages");
       const message = inputField.value.trim();
-      if (!message) return;
-  
+   
+  if (!sendButton || !inputField || !chatMessages) {
+    console.error("⛔️ Eén of meerdere elementen bestaan niet op de pagina.");
+    return;
+  }
+
+  sendButton.addEventListener("click", async function () {
+    const message = inputField.value.trim();
+    if (!message) return;
       // Toon de vraag van de gebruiker in de chatbox
       const userMessageElem = document.createElement("div");
       userMessageElem.textContent = "Jij: " + message;
