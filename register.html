@@ -1,20 +1,4 @@
-<script>
-  async function checkLogin() {
-    try {
-      const response = await fetch("", { method: "GET", credentials: "include" });
-      const result = await response.json();
-      
-      if (!result.logged_in) {
-        window.location.href = "/login.html"; // Niet ingelogd ➔ Terug naar login
-      }
-    } catch (error) {
-      console.error("Fout bij login check:", error);
-      window.location.href = "/login.html"; // Bij fout ook redirecten
-    }
-  }
 
-  checkLogin();
-</script>
 
 
 <!DOCTYPE html>
