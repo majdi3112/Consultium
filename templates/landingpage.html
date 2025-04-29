@@ -1,4 +1,25 @@
-
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mediflow</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col font-inter">
+  
+    <!-- HEADER -->
+   
+  
+    <!-- PAGINA CONTENT -->
+    <main class="flex-1">
+ 
+    </main>
+  
+  </body>
 <div id="loading-overlay" class="flex">
     <div class="spinner"></div>
   </div>
@@ -6,12 +27,12 @@
   <!-- Header -->
   <header class="flex items-center justify-between px-6 py-4 bg-white shadow">
     <div class="flex items-center space-x-3">
-    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Mediflow Logo"
+    <img src="static/images/logo.png') }}" alt="Mediflow Logo"
 
          class="h-8 w-auto object-contain transform scale-[4] origin-left mt-2">
     </div>
     <div class="relative">
-        <img src="{{ url_for('static', filename='images/user-profile.png') }}" 
+        <img src="static/images/user-profile.png') }}" 
              alt="Profiel" 
              class="w-10 h-10 rounded-full border border-gray-300 cursor-pointer"
              onclick="toggleMenu()">
