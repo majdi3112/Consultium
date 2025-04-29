@@ -1,10 +1,3 @@
-<script>
-  if (!sessionStorage.getItem("user_logged_in")) {
-    window.location.href = "index.html"; // Terug naar login
-  }
-</script>
-
-
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -68,7 +61,7 @@
         <textarea id="text-input" placeholder="Hier typen..." class="w-full p-4 text-lg placeholder-gray-400 bg-transparent outline-none expanding-textarea"></textarea>
       </div>
       <button id="whisper-btn" class="mt-4 px-4 py-2 bg-blue-100 text-blue-700 rounded-full shadow hover:bg-blue-200 transition inline-flex items-center">
-        🎙 Start Opname
+        🎙️ Start Opname
       </button>
     </div>
 
@@ -107,7 +100,7 @@
       let html = '<ul class="list-disc pl-6 mb-4">';
       parts.forEach(part => {
         const item = part.trim();
-        if (item) html += <li class="mb-2">${item}</li>;
+        if (item) html += `<li class="mb-2">${item}</li>`;
       });
       html += '</ul>';
       return html;
@@ -131,7 +124,7 @@ function createSection(letter, content) {
 
   // Zet de knop onclick om onze helper aan te roepen
   const btn = clone.querySelector('button');
-  btn.setAttribute('onclick', copyToClipboard('${outputId}'));
+  btn.setAttribute('onclick', `copyToClipboard('${outputId}')`);
 
   return clone;
 }
@@ -148,7 +141,7 @@ document.getElementById('generate-soep').addEventListener('click', async () => {
   btn.disabled = true;
 
   try {
-      const res = await fetch('', {
+      const res = await fetch('https://32ef-34-69-14-211.ngrok-free.app', {
        method: 'POST',
        headers: {'Content-Type':'application/json'},
        body: JSON.stringify({ prompt: input })
@@ -316,7 +309,7 @@ document.getElementById("whisper-btn").addEventListener("click", async function 
                 formData.append("file", audioBlob, "recording.webm");
 
                 try {
-                    const response = await fetch(//transcribe-audio", {
+                    const response = await fetch("https://0a3c-104-196-218-235.ngrok-free.app//transcribe-audio", {
                         method: "POST",
                         body: formData
                     });
@@ -336,14 +329,14 @@ document.getElementById("whisper-btn").addEventListener("click", async function 
                 whisperRecorder = null;
                 isRecording = false;
 
-                button.textContent = "🎙 Start Opname";
+                button.textContent = "🎙️ Start Opname";
                 button.classList.remove("bg-red-500");
                 button.classList.add("bg-blue-200");
             };
 
             whisperRecorder.start();
             isRecording = true;
-            button.textContent = "⏹ Stop";
+            button.textContent = "⏹️ Stop";
             button.classList.remove("bg-blue-200");
             button.classList.add("bg-red-500");
 
@@ -354,7 +347,7 @@ document.getElementById("whisper-btn").addEventListener("click", async function 
     } else {
         // Stop opname
         if (whisperRecorder && whisperRecorder.state === "recording") {
-            whisperRecorder.stop(); // ⬅ dit triggert .onstop()
+            whisperRecorder.stop(); // ⬅️ dit triggert .onstop()
         }
     }
 });
@@ -408,7 +401,7 @@ document.getElementById("whisper-btn").addEventListener("click", async function 
     // 📋 Functie om tekst te kopiëren – moet globaal staan, ná al je buttons
     function copyToClipboard(id) {
       const field = document.getElementById(id);
-      if (!field) return console.error(Element #${id} niet gevonden);
+      if (!field) return console.error(`Element #${id} niet gevonden`);
       const text = field.innerText || field.textContent;
       navigator.clipboard.writeText(text)
         .then(() => {
