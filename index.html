@@ -8,7 +8,7 @@
 </head>
 <body class="bg-gray-50 h-screen flex items-center justify-center font-inter">
   <div class="w-full max-w-md bg-white p-8 rounded-lg shadow-lg">
-    <h1 class="text-2xl font-semibold mb-6 text-center">Log in op je account</h1>
+    <h1 class="text-2xl font-semibold mb-6 text-center">Log in op jouw account</h1>
     <form onsubmit="handleLogin(event)" class="space-y-4">
       <div>
         <label for="email" class="block text-gray-700">E-mail</label>
@@ -27,7 +27,7 @@
     </form>
     <p class="mt-4 text-center text-gray-600">
       Nog geen account?
-      <a href="register.html" class="text-blue-600 hover:underline">Registreer hier</a>
+      <a href="/Consultium/register.html" class="text-blue-600 hover:underline">Registreer hier</a>
     </p>
   </div>
 
@@ -38,20 +38,20 @@
       const password = document.getElementById("password").value;
 
       try {
-      const response = await fetch("https://6f73-104-196-218-235.ngrok-free.app", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-      });
+        const response = await fetch("https://6f73-104-196-218-235.ngrok-free.app/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ email, password }),
+        });
 
         const data = await response.json();
 
         if (data.error) {
           alert("❌ Onjuiste e-mail of wachtwoord.");
         } else {
-          // ✅ Login gelukt: zet sessionStorage flag
           sessionStorage.setItem("user_logged_in", "true");
-          window.location.href = "home.html"; // ga naar de beveiligde pagina
+          window.location.href = "home.html";
         }
 
       } catch (error) {
