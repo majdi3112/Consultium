@@ -1,29 +1,85 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Mediflow</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="images/icon.png" type="image/png" sizes="168x168">
+  <title>Consultium App</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { font-family: 'Inter', sans-serif; }
+    /* Loading overlay */
+#loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255,255,255,0.8);
+  display: none;              /* start hidden */
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+/* Tailwind-spinner */
+.spinner {
+  border: 4px solid #3b82f6;      /* blauw */
+  border-top-color: transparent;
+  border-radius: 9999px;          /* rond */
+  width: 3rem;
+  height: 3rem;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+    body { font-family: 'Inter', sans-serif; background: #f8fafc; }
+    .expanding-textarea {
+      min-height: 80px;
+      max-height: 640px;
+      overflow-y: auto;
+      resize: none;
+      padding: 1rem 1rem 4rem;
+    }
+    .formatted-output {
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      padding: 0;
+    }
+    .scrollable-box {
+      max-height: 240px;
+      overflow-y: auto;
+      background: transparent;
+      padding: 0;
+    }
+    .text-red { color: red; font-weight: bold; }
+    .text-orange { color: orange; font-weight: bold; }
+    .text-yellow { color: goldenrod; font-weight: bold; }
+    .text-purple { color: purple; font-weight: bold; }
+    .fade-in { opacity: 0; animation: fadeIn 0.5s ease-out forwards; }
+    @keyframes fadeIn { to { opacity: 1; } }
+    /* Force bullets to be vertical */
+    .formatted-output ul {
+      display: block;
+      margin: 0 0 0.75rem 1.5rem;
+      padding: 0;
+    }
+    .formatted-output li {
+      display: list-item;
+      margin-bottom: 0.5rem;
+    }
+    .formatted-output ul ul {
+      margin-bottom: 0.5rem;
+      margin-left: 1rem;
+    }
   </style>
 </head>
-<body class="bg-gray-50 min-h-screen flex flex-col font-inter">
-  
-    <!-- HEADER -->
-   
-
-  
-<div id="loading-overlay" class="flex">
+<body class="h-screen flex flex-col">
+  <!-- Loading overlay -->
+  <div id="loading-overlay" class="flex">
     <div class="spinner"></div>
   </div>
     
   <!-- Header -->
   <header class="flex items-center justify-between px-6 py-4 bg-white shadow">
     <div class="flex items-center space-x-3">
-    <img src="static/images/logo.png" alt="Mediflow Logo"
-
+    <img src="images/logo.png"
+         alt="Mediflow Logo"
          class="h-8 w-auto object-contain transform scale-[4] origin-left mt-2">
     </div>
     <div class="relative">
