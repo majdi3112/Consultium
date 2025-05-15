@@ -197,7 +197,7 @@ document.getElementById('generate-soep').addEventListener('click', async () => {
   btn.disabled = true;
 
   try {
-      const res = await fetch('https://ce3f-34-125-209-111.ngrok-free.app//generate-soep', {
+      const res = await fetch('https://1397-34-125-209-111.ngrok-free.app///generate-soep', {
        method: 'POST',
        headers: {'Content-Type':'application/json'},
        body: JSON.stringify({ prompt: input })
@@ -283,7 +283,7 @@ document.getElementById('generate-soep').addEventListener('click', async () => {
         formData.append("file", file);
 
         try {
-            const response = await fetch("https://ce3f-34-125-209-111.ngrok-free.app///transcribe-audio", {
+            const response = await fetch("https://1397-34-125-209-111.ngrok-free.app////transcribe-audio", {
                 method: "POST",
                 body: formData
             });
@@ -314,7 +314,7 @@ document.getElementById('generate-soep').addEventListener('click', async () => {
         formData.append("file", file);
 
         try {
-            const response = await fetch("https://ce3f-34-125-209-111.ngrok-free.app///transcribe-audio", {
+            const response = await fetch("https://1397-34-125-209-111.ngrok-free.app////transcribe-audio", {
                 method: "POST",
                 body: formData
             });
@@ -365,7 +365,7 @@ document.getElementById("whisper-btn").addEventListener("click", async function 
                 formData.append("file", audioBlob, "recording.webm");
 
                 try {
-                    const response = await fetch("https://ce3f-34-125-209-111.ngrok-free.app///transcribe-audio", {
+                    const response = await fetch("https://1397-34-125-209-111.ngrok-free.app////transcribe-audio", {
                         method: "POST",
                         body: formData
                     });
@@ -435,7 +435,7 @@ document.getElementById("whisper-btn").addEventListener("click", async function 
   
       try {
         // Pas de URL hieronder aan naar jouw ngrok-domein of backend URL
-        const response = await fetch("https://ce3f-34-125-209-111.ngrok-free.app///chat-assistant", {
+        const response = await fetch("https://1397-34-125-209-111.ngrok-free.app////chat-assistant", {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
