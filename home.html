@@ -177,15 +177,11 @@ document.getElementById("whisper-btn").addEventListener("click", async function 
         const formData  = new FormData();
         formData.append("file", audioBlob, "recording.webm");
         formData.append("req_model_size",    "tiny");
-        formData.append("req_model_lang",    "all");
-        formData.append("req_translate",     "0");
-        formData.append("req_translate_from","nl");
-        formData.append("req_translate_to",  "en");
         formData.append("req_mode",          "subs");
 
         // Verstuur naar jouw live-transcribe endpoint
         try {
-          const res = await fetch("https://73b3-35-201-134-157.ngrok-free.app/live-transcribe", {
+          const res = await fetch("https://fd5d-35-201-134-157.ngrok-free.app/live-transcribe", {
             method: "POST",
             body: formData
           });
@@ -272,7 +268,7 @@ document.getElementById('generate-soep').addEventListener('click', async () => {
   btn.disabled = true;
 
   try {
-      const res = await fetch('https://73b3-35-201-134-157.ngrok-free.app/generate-soep', {
+      const res = await fetch('https://fd5d-35-201-134-157.ngrok-free.app/generate-soep', {
        method: 'POST',
        headers: {'Content-Type':'application/json'},
        body: JSON.stringify({ prompt: input })
@@ -377,7 +373,7 @@ document.getElementById('generate-soep').addEventListener('click', async () => {
   
       try {
         // Pas de URL hieronder aan naar jouw ngrok-domein of backend URL
-        const response = await fetch("https://73b3-35-201-134-157.ngrok-free.app/chat-assistant", {
+        const response = await fetch("https://fd5d-35-201-134-157.ngrok-free.app/chat-assistant", {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
