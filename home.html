@@ -148,6 +148,81 @@
 
     </div>
   </main>
+<script>
+let whisperRecorder = null;
+let whisperStream   = null;
+let whisperChunks   = [];
+let isRecording     = false;
+
+document.getElementById("whisper-btn").addEventListener("click", async function () {
+  const button = this;
+
+  if (!isRecording) {
+    try {
+      // Start microfoon
+      whisperStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const options  = MediaRecorder.isTypeSupported("audio/webm")
+                       ? { mimeType: "audio/webm" }
+                       : { mimeType: "audio/webm;codecs=opus" };
+      whisperRecorder = new MediaRecorder(whisperStream, options);
+      whisperChunks   = [];
+
+      whisperRecorder.ondataavailable = e => {
+        if (e.data.size > 0) whisperChunks.push(e.data);
+      };
+
+      whisperRecorder.onstop = async () => {
+        // Zet Blob om naar form-data
+        const audioBlob = new Blob(whisperChunks, { type: "audio/webm" });
+        const formData  = new FormData();
+        formData.append("file", audioBlob, "recording.webm");
+        formData.append("req_model_size",    "tiny");
+        formData.append("req_model_lang",    "all");
+        formData.append("req_translate",     "0");
+        formData.append("req_translate_from","nl");
+        formData.append("req_translate_to",  "en");
+        formData.append("req_mode",          "subs");
+
+        // Verstuur naar jouw live-transcribe endpoint
+        try {
+          const res = await fetch("https://73b3-35-201-134-157.ngrok-free.app/live-transcribe", {
+            method: "POST",
+            body: formData
+          });
+          const result = await res.json();
+          if (result.error) {
+            alert("❌ Fout bij transcriptie: " + result.error);
+          } else {
+            document.getElementById("text-input").value = result.res_text;
+          }
+        } catch (err) {
+          console.error("❌ Fout bij uploaden:", err);
+          alert("❌ Kon transcriptie niet ophalen.");
+        }
+
+        // Stop de tracks en reset state
+        whisperStream.getTracks().forEach(t => t.stop());
+        isRecording = false;
+        button.textContent = "🎙️ Start Opname";
+        button.classList.replace("bg-red-500", "bg-blue-200");
+      };
+
+      whisperRecorder.start();
+      isRecording = true;
+      button.textContent = "⏹️ Stop";
+      button.classList.replace("bg-blue-200", "bg-red-500");
+
+    } catch (err) {
+      console.error("🎤 Microfoonfout:", err);
+      alert("❌ Kon microfoon niet starten.");
+    }
+
+  } else {
+    // Stop opname; triggert onstop
+    whisperRecorder.stop();
+  }
+});
+</script>
 
   <script>
     // Bullets formatter: split items on '•' and render vertical list
