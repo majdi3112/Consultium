@@ -159,50 +159,67 @@ document.getElementById("whisper-btn").addEventListener("click", async function 
 
   if (!isRecording) {
     try {
-      // Start microfoon
+      // 📥 Start microfoon
       whisperStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const options  = MediaRecorder.isTypeSupported("audio/webm")
                        ? { mimeType: "audio/webm" }
                        : { mimeType: "audio/webm;codecs=opus" };
+
       whisperRecorder = new MediaRecorder(whisperStream, options);
       whisperChunks   = [];
 
+      // ⏺️ Verzamel elke chunk
       whisperRecorder.ondataavailable = e => {
         if (e.data.size > 0) whisperChunks.push(e.data);
       };
 
+      // ✋ Als de opname stopt, stuur hij de volledige blob en lees je de stream
       whisperRecorder.onstop = async () => {
-        // Zet Blob om naar form-data
         const audioBlob = new Blob(whisperChunks, { type: "audio/webm" });
         const formData  = new FormData();
         formData.append("file", audioBlob, "recording.webm");
-        formData.append("req_model_size",    "tiny");
-        formData.append("req_mode",          "subs");
+        formData.append("req_model_size", "tiny");
 
-        // Verstuur naar jouw live-transcribe endpoint
         try {
           const res = await fetch("https://d85e-34-106-209-19.ngrok-free.app/live-transcribe", {
             method: "POST",
             body: formData
           });
-          const result = await res.json();
-          if (result.error) {
-            alert("❌ Fout bij transcriptie: " + result.error);
-          } else {
-            document.getElementById("text-input").value = result.res_text;
+
+          // 📡 Stream de SSE-achtige response zelf
+          const reader  = res.body.getReader();
+          const decoder = new TextDecoder();
+          let   buffer  = "";
+
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const parts = buffer.split("\n\n");
+            // verwerk complete ‘data: {…}’ blokken
+            for (let i = 0; i < parts.length - 1; i++) {
+              const part = parts[i].trim();
+              if (part.startsWith("data:")) {
+                const jsonStr = part.replace(/^data:\s*/, "");
+                const obj     = JSON.parse(jsonStr);
+                document.getElementById("text-input").value += obj.res_text;
+              }
+            }
+            buffer = parts[parts.length - 1];
           }
         } catch (err) {
-          console.error("❌ Fout bij uploaden:", err);
+          console.error("❌ Fout bij uploaden of lezen:", err);
           alert("❌ Kon transcriptie niet ophalen.");
         }
 
-        // Stop de tracks en reset state
+        // 🛑 Cleanup
         whisperStream.getTracks().forEach(t => t.stop());
         isRecording = false;
         button.textContent = "🎙️ Start Opname";
         button.classList.replace("bg-red-500", "bg-blue-200");
       };
 
+      // ▶️ Begin opnemen
       whisperRecorder.start();
       isRecording = true;
       button.textContent = "⏹️ Stop";
@@ -212,13 +229,13 @@ document.getElementById("whisper-btn").addEventListener("click", async function 
       console.error("🎤 Microfoonfout:", err);
       alert("❌ Kon microfoon niet starten.");
     }
-
   } else {
-    // Stop opname; triggert onstop
+    // ⏹️ Stop opname (trigger onstop)
     whisperRecorder.stop();
   }
 });
 </script>
+
 
   <script>
     // Bullets formatter: split items on '•' and render vertical list
