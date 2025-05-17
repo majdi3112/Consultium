@@ -151,89 +151,59 @@
 <script>
 let whisperRecorder = null;
 let whisperStream   = null;
-let whisperChunks   = [];
 let isRecording     = false;
 
 document.getElementById("whisper-btn").addEventListener("click", async function () {
-  const button = this;
+  const btn = this;
 
   if (!isRecording) {
-    try {
-      // 📥 Start microfoon
-      whisperStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const options  = MediaRecorder.isTypeSupported("audio/webm")
-                       ? { mimeType: "audio/webm" }
-                       : { mimeType: "audio/webm;codecs=opus" };
+    // 1️⃣ vraag toestemming en open de mic
+    whisperStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const options = MediaRecorder.isTypeSupported("audio/webm")
+      ? { mimeType: "audio/webm;codecs=opus" }
+      : { mimeType: "audio/webm" };
+    whisperRecorder = new MediaRecorder(whisperStream, options);
 
-      whisperRecorder = new MediaRecorder(whisperStream, options);
-      whisperChunks   = [];
+    // 2️⃣ stuur elke chunk direct
+    whisperRecorder.ondataavailable = async e => {
+      if (e.data.size === 0) return;
+      const form = new FormData();
+      form.append("file", e.data, "chunk.webm");
+      form.append("req_model_size",    "tiny");
+      form.append("req_model_lang",    "all");
+      form.append("req_translate",     "0");
+      form.append("req_translate_from","nl");
+      form.append("req_translate_to",  "en");
+      form.append("req_mode",          "subs");
 
-      // ⏺️ Verzamel elke chunk
-      whisperRecorder.ondataavailable = e => {
-        if (e.data.size > 0) whisperChunks.push(e.data);
-      };
+      try {
+        const res  = await fetch("https://9a22-34-106-209-19.ngrok-free.app/live-transcribe", { method: "POST", body: form });
+        const json = await res.json();
+        // 3️⃣ plak de nieuwste transcriptie achterin je textarea
+        const ti   = document.getElementById("text-input");
+        ti.value  += json.res_text;
+      } catch (err) {
+        console.error("Upload chunk faalde:", err);
+      }
+    };
 
-      // ✋ Als de opname stopt, stuur hij de volledige blob en lees je de stream
-      whisperRecorder.onstop = async () => {
-        const audioBlob = new Blob(whisperChunks, { type: "audio/webm" });
-        const formData  = new FormData();
-        formData.append("file", audioBlob, "recording.webm");
-        formData.append("req_model_size", "tiny");
+    // 3️⃣ start met timeslice (hier elke 1 s een chunk)
+    whisperRecorder.start(1000);
 
-        try {
-          const res = await fetch("https://9a22-34-106-209-19.ngrok-free.app/live-transcribe", {
-            method: "POST",
-            body: formData
-          });
+    btn.textContent = "⏹️ Stop";
+    btn.classList.replace("bg-blue-200","bg-red-500");
+    isRecording = true;
 
-          // 📡 Stream de SSE-achtige response zelf
-          const reader  = res.body.getReader();
-          const decoder = new TextDecoder();
-          let   buffer  = "";
-
-          while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            const parts = buffer.split("\n\n");
-            // verwerk complete ‘data: {…}’ blokken
-            for (let i = 0; i < parts.length - 1; i++) {
-              const part = parts[i].trim();
-              if (part.startsWith("data:")) {
-                const jsonStr = part.replace(/^data:\s*/, "");
-                const obj     = JSON.parse(jsonStr);
-                document.getElementById("text-input").value += obj.res_text;
-              }
-            }
-            buffer = parts[parts.length - 1];
-          }
-        } catch (err) {
-          console.error("❌ Fout bij uploaden of lezen:", err);
-          alert("❌ Kon transcriptie niet ophalen.");
-        }
-
-        // 🛑 Cleanup
-        whisperStream.getTracks().forEach(t => t.stop());
-        isRecording = false;
-        button.textContent = "🎙️ Start Opname";
-        button.classList.replace("bg-red-500", "bg-blue-200");
-      };
-
-      // ▶️ Begin opnemen
-      whisperRecorder.start();
-      isRecording = true;
-      button.textContent = "⏹️ Stop";
-      button.classList.replace("bg-blue-200", "bg-red-500");
-
-    } catch (err) {
-      console.error("🎤 Microfoonfout:", err);
-      alert("❌ Kon microfoon niet starten.");
-    }
   } else {
-    // ⏹️ Stop opname (trigger onstop)
+    // stop en cleanup
     whisperRecorder.stop();
+    whisperStream.getTracks().forEach(t=>t.stop());
+    btn.textContent = "🎙️ Start Opname";
+    btn.classList.replace("bg-red-500","bg-blue-200");
+    isRecording = false;
   }
 });
+
 </script>
 
 
