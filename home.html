@@ -149,61 +149,61 @@
     </div>
   </main>
 <script>
-let whisperRecorder = null;
-let whisperStream   = null;
-let isRecording     = false;
+  let whisperRecorder = null;
+  let whisperStream   = null;
+  let isRecording     = false;
 
-document.getElementById("whisper-btn").addEventListener("click", async function () {
-  const btn = this;
+  document.getElementById("whisper-btn").addEventListener("click", async function () {
+    const btn = this;
 
-  if (!isRecording) {
-    // 1️⃣ vraag toestemming en open de mic
-    whisperStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const options = MediaRecorder.isTypeSupported("audio/webm")
-      ? { mimeType: "audio/webm;codecs=opus" }
-      : { mimeType: "audio/webm" };
-    whisperRecorder = new MediaRecorder(whisperStream, options);
+    if (!isRecording) {
+      // 1️⃣ Vraag mic-toestemming en open de stream
+      whisperStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const options = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? { mimeType: "audio/webm;codecs=opus" }
+        : { mimeType: "audio/webm" };
+      whisperRecorder = new MediaRecorder(whisperStream, options);
 
-    // 2️⃣ stuur elke chunk direct
-    whisperRecorder.ondataavailable = async e => {
-      if (e.data.size === 0) return;
-      const form = new FormData();
-      form.append("file", e.data, "chunk.webm");
-      form.append("req_model_size",    "tiny");
-      form.append("req_model_lang",    "all");
-      form.append("req_translate",     "0");
-      form.append("req_translate_from","nl");
-      form.append("req_translate_to",  "en");
-      form.append("req_mode",          "subs");
+      // 2️⃣ Voor elke chunk (hier elke 1000 ms) direct versturen
+      whisperRecorder.ondataavailable = async e => {
+        if (e.data.size === 0) return;
+        const form = new FormData();
+        form.append("file", e.data, "chunk.webm");
+        form.append("req_model_size",    "tiny");
+        form.append("req_model_lang",    "all");
+        form.append("req_translate",     "0");
+        form.append("req_translate_from","nl");
+        form.append("req_translate_to",  "en");
+        form.append("req_mode",          "subs");
 
-      try {
-        const res  = await fetch("https://1054-34-106-209-19.ngrok-free.app/live-transcribe", { method: "POST", body: form });
-        const json = await res.json();
-        // 3️⃣ plak de nieuwste transcriptie achterin je textarea
-        const ti   = document.getElementById("text-input");
-        ti.value  += json.res_text;
-      } catch (err) {
-        console.error("Upload chunk faalde:", err);
-      }
-    };
+        try {
+          const res  = await fetch("https://a6b5-34-106-78-251.ngrok-free.app/live-transcribe", {
+            method: "POST",
+            body: form
+          });
+          const json = await res.json();
+          document.getElementById("text-input").value += json.res_text;
+        } catch (err) {
+          console.error("Chunk upload mislukt:", err);
+        }
+      };
 
-    // 3️⃣ start met timeslice (hier elke 1 s een chunk)
-    whisperRecorder.start(1000);
+      // 3️⃣ Start opnemen, elke 1 s een chunk
+      whisperRecorder.start(1000);
 
-    btn.textContent = "⏹️ Stop";
-    btn.classList.replace("bg-blue-200","bg-red-500");
-    isRecording = true;
+      btn.textContent = "⏹️ Stop";
+      btn.classList.replace("bg-blue-200", "bg-red-500");
+      isRecording = true;
 
-  } else {
-    // stop en cleanup
-    whisperRecorder.stop();
-    whisperStream.getTracks().forEach(t=>t.stop());
-    btn.textContent = "🎙️ Start Opname";
-    btn.classList.replace("bg-red-500","bg-blue-200");
-    isRecording = false;
-  }
-});
-
+    } else {
+      // ⏹️ Stop opnemen en ruimen op
+      whisperRecorder.stop();
+      whisperStream.getTracks().forEach(t => t.stop());
+      btn.textContent = "🎙️ Start Opname";
+      btn.classList.replace("bg-red-500", "bg-blue-200");
+      isRecording = false;
+    }
+  });
 </script>
 
 
@@ -255,7 +255,7 @@ document.getElementById('generate-soep').addEventListener('click', async () => {
   btn.disabled = true;
 
   try {
-      const res = await fetch('https://1054-34-106-209-19.ngrok-free.app/generate-soep', {
+      const res = await fetch('https://a6b5-34-106-78-251.ngrok-free.app/generate-soep', {
        method: 'POST',
        headers: {'Content-Type':'application/json'},
        body: JSON.stringify({ prompt: input })
@@ -360,7 +360,7 @@ document.getElementById('generate-soep').addEventListener('click', async () => {
   
       try {
         // Pas de URL hieronder aan naar jouw ngrok-domein of backend URL
-        const response = await fetch("https://1054-34-106-209-19.ngrok-free.app/chat-assistant", {
+        const response = await fetch("https://a6b5-34-106-78-251.ngrok-free.app/chat-assistant", {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
