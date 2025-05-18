@@ -80,7 +80,7 @@
     <div class="flex items-center space-x-3">
     <img src="static/images/logo.png"
          alt="Mediflow Logo"
-         class="h-8 w-auto object-contain transform scale-[4] origin-left mt-0.5">
+         class="h-8 w-auto object-contain transform scale-[4] origin-left mt-2">
     </div>
     <div class="relative">
         <img src="static/images/default.png" 
@@ -148,56 +148,6 @@
 
     </div>
   </main>
-<script>
-let source; 
-let recorder; 
-let stream;
-
-document.getElementById("whisper-btn").addEventListener("click", async function() {
-  const btn = this;
-
-  if (!source) {
-    // 1️⃣ Vraag mic-toestemming
-    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
-
-    // 2️⃣ Start je SSE-listener _VOOR_ de opname
-    source = new EventSource("https://fb00-34-60-91-90.ngrok-free.app/live-transcribe");
-    source.onmessage = e => {
-      const { res_text } = JSON.parse(e.data);
-      document.getElementById("text-input").value += res_text;
-    };
-
-    // 3️⃣ Bij elke chunk stuur je ‘m op met fetch, zoals je al deed
-    recorder.ondataavailable = e => {
-      if (e.data.size === 0) return;
-      const form = new FormData();
-      form.append("file", e.data, "chunk.webm");
-      form.append("req_model_size", "tiny");
-      form.append("req_model_lang", "all");
-      form.append("req_translate", "0");
-      form.append("req_translate_from", "nl");
-      form.append("req_translate_to", "en");
-      form.append("req_mode", "subs");
-      fetch("https://fb00-34-60-91-90.ngrok-free.app/live-transcribe", { method: "POST", body: form });
-    };
-
-    recorder.start(1000);  // elke seconde een chunk
-    btn.textContent = "⏹️ Stop";
-    btn.classList.replace("bg-blue-200", "bg-red-500");
-  } else {
-    // stop alles
-    recorder.stop();
-    stream.getTracks().forEach(t => t.stop());
-    source.close();
-    source = null;
-    btn.textContent = "🎙️ Start Opname";
-    btn.classList.replace("bg-red-500", "bg-blue-200");
-  }
-});
-
-</script>
-
 
   <script>
     // Bullets formatter: split items on '•' and render vertical list
@@ -247,7 +197,7 @@ document.getElementById('generate-soep').addEventListener('click', async () => {
   btn.disabled = true;
 
   try {
-      const res = await fetch('https://fb00-34-60-91-90.ngrok-free.app/generate-soep', {
+      const res = await fetch('https://0d0f-35-238-23-165.ngrok-free.app/generate-soep', {
        method: 'POST',
        headers: {'Content-Type':'application/json'},
        body: JSON.stringify({ prompt: input })
@@ -326,6 +276,127 @@ document.getElementById('generate-soep').addEventListener('click', async () => {
       });
   });
 </script>
+<script>
+    // 📤 Upload audio naar backend (bijvoorbeeld na opnemen)
+    async function uploadAudio(file) {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            const response = await fetch("https://0d0f-35-238-23-165.ngrok-free.app/transcribe-audio", {
+                method: "POST",
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.error) {
+                alert("Fout bij transcriptie: " + result.error);
+            } else {
+                // ✅ Toon alleen de VERBETERDE transcriptie
+                document.getElementById("text-input").value = result.transcription;
+            }
+        } catch (error) {
+            console.error("Fout bij upload:", error);
+            alert("Kon geen verbinding maken met de backend.");
+        }
+    }
+    async function uploadAudioFile() {
+        const fileInput = document.getElementById('audio-upload');
+        const file = fileInput.files[0];
+
+        if (!file) {
+            alert("📂 Kies een audiobestand om te uploaden.");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            const response = await fetch("https://0d0f-35-238-23-165.ngrok-free.app/transcribe-audio", {
+                method: "POST",
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.error) {
+                alert("❌ Fout bij transcriptie: " + result.error);
+            } else {
+                document.getElementById("text-input").value = result.transcription;
+            }
+        } catch (error) {
+            console.error("❌ Uploadfout:", error);
+            alert("Er ging iets mis bij het uploaden.");
+        }
+    }
+
+let whisperRecorder = null;
+let whisperStream = null;
+let isRecording = false;
+let source = null;
+const liveDiv = document.getElementById("text-input");  // we updaten hier direct je textarea
+
+document.getElementById("whisper-btn").addEventListener("click", async function () {
+  const button = this;
+
+  if (!isRecording) {
+    // 1️⃣ Start microphone
+    whisperStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const options = MediaRecorder.isTypeSupported("audio/webm")
+      ? { mimeType: "audio/webm" }
+      : { mimeType: "audio/webm;codecs=opus" };
+
+    whisperRecorder = new MediaRecorder(whisperStream, options);
+
+    // 2️⃣ Stuurt elk chunk (500 ms) direct naar de server
+    whisperRecorder.ondataavailable = (e) => {
+      if (e.data.size === 0) return;
+      const fd = new FormData();
+      fd.append("file", e.data, "chunk.webm");
+      fetch("https://0d0f-35-238-23-165.ngrok-free.app/transcribe-stream", {
+        method: "POST",
+        body: fd
+      });
+    };
+
+    // 3️⃣ Start met een timeslice van 500 ms
+    whisperRecorder.start(500);
+    isRecording = true;
+
+    // 4️⃣ Eénmalig: open SSE-kanaal voor live updates
+    if (!source) {
+      source = new EventSource(
+        "https://0d0f-35-238-23-165.ngrok-free.app/transcribe-stream"
+      );
+      source.onmessage = (evt) => {
+        const { text, is_final } = JSON.parse(evt.data);
+        liveDiv.value = text;               // updaten in je textarea
+        if (is_final) {
+          // optioneel: markeer finale zin, of scroll, etc.
+        }
+      };
+    }
+
+    // update knop-UI
+    button.textContent = "⏹️ Stop";
+    button.classList.replace("bg-blue-200", "bg-red-500");
+
+  } else {
+    // Stop recording
+    whisperRecorder.stop();
+    whisperStream.getTracks().forEach((t) => t.stop());
+    isRecording = false;
+
+    // update knop-UI
+    button.textContent = "🎙️ Start Opname";
+    button.classList.replace("bg-red-500", "bg-blue-200");
+  }
+});
+
+
+</script>
 
 <script>
     document.getElementById("chat-send").addEventListener("click", async function() {
@@ -352,7 +423,7 @@ document.getElementById('generate-soep').addEventListener('click', async () => {
   
       try {
         // Pas de URL hieronder aan naar jouw ngrok-domein of backend URL
-        const response = await fetch("https://fb00-34-60-91-90.ngrok-free.app/chat-assistant", {
+        const response = await fetch("https://0d0f-35-238-23-165.ngrok-free.app/chat-assistant", {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
