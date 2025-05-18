@@ -332,84 +332,88 @@ document.getElementById('generate-soep').addEventListener('click', async () => {
         }
     }
 
-let whisperRecorder = null;
-let whisperStream = null;
-let isRecording = false;
-let source = null;
+// VERVANG HET BESTAANDE OPNAMEBLOK MET DIT:
+
+// =============== AUDIO VERWERKING ===============
+let mediaRecorder = null;
+let audioStream = null;
 const liveDiv = document.getElementById("text-input");
 
 document.getElementById("whisper-btn").addEventListener("click", async function () {
-  const button = this;
-
-  if (!isRecording) {
-    // 🔴 Verwijder de dubbele event listener
-    const audioConstraints = { 
-      audio: { 
-        sampleRate: 16000,
-        channelCount: 1,
-        noiseSuppression: true,
-        echoCancellation: true
-      } 
-    };
-
-    try {
-      whisperStream = await navigator.mediaDevices.getUserMedia(audioConstraints);
-      
-      const recorderOptions = {
-        mimeType: 'audio/webm;codecs=opus',
-        audioBitsPerSecond: 16000
-      };
-
-      whisperRecorder = new MediaRecorder(whisperStream, recorderOptions);
-
-      // 🎯 Data handler met chunk-reset
-      whisperRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          const fd = new FormData();
-          fd.append("file", e.data, "chunk.webm");
-          fetch("https://cf29-34-75-147-139.ngrok-free.app/transcribe-stream", {
-            method: "POST",
-            body: fd
-          });
-        }
-      };
-
-      // 🚀 Start logica met header-init
-      whisperRecorder.start(500);
-      setTimeout(() => {
-        whisperRecorder.stop();
-        whisperRecorder.start(100);
-      }, 500);
-
-      // SSE listener
-      if (!source) {
-        source = new EventSource("https://cf29-34-75-147-139.ngrok-free.app/transcribe-stream");
-        source.onmessage = (e) => {
-          const { text } = JSON.parse(e.data);
-          liveDiv.value = text;
-        };
-      }
-
-      button.textContent = "⏹️ Stop";
-      button.classList.replace("bg-blue-200", "bg-red-500");
-      isRecording = true;
-
-    } catch (err) {
-      console.error("Opnamefout:", err);
-      alert("Microfoontoegang vereist!");
-    }
-
-  } else {
-    // Stop logica
-    whisperRecorder?.stop();
-    whisperStream?.getTracks().forEach(t => t.stop());
-    source?.close();
+    const button = this;
     
-    button.textContent = "🎙️ Start Opname";
-    button.classList.replace("bg-red-500", "bg-blue-200");
-    isRecording = false;
-  }
+    if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+        try {
+            // Start opname
+            audioStream = await navigator.mediaDevices.getUserMedia({ 
+                audio: {
+                    sampleRate: 16000,
+                    channelCount: 1,
+                    noiseSuppression: true,
+                    echoCancellation: true
+                }
+            });
+
+            mediaRecorder = new MediaRecorder(audioStream, {
+                mimeType: 'audio/webm;codecs=opus',
+                audioBitsPerSecond: 16000
+            });
+
+            // Chunk verwerking
+            mediaRecorder.ondataavailable = async (event) => {
+                if (event.data.size > 0) {
+                    await verwerkAudioChunk(event.data);
+                }
+            };
+
+            // Timer voor header-init
+            mediaRecorder.start(500);
+            setTimeout(() => {
+                mediaRecorder.stop();
+                mediaRecorder.start(100);
+            }, 500);
+
+            // UI update
+            button.textContent = "⏹️ Stop Opname";
+            button.classList.replace("bg-blue-200", "bg-red-500");
+
+        } catch (err) {
+            console.error("Opnamefout:", err);
+            alert("Microfoontoegang vereist!");
+        }
+    } else {
+        // Stop opname
+        mediaRecorder.stop();
+        audioStream.getTracks().forEach(track => track.stop());
+        
+        // UI reset
+        button.textContent = "🎙️ Start Opname";
+        button.classList.replace("bg-red-500", "bg-blue-200");
+    }
 });
+
+async function verwerkAudioChunk(chunk) {
+    try {
+        const formData = new FormData();
+        formData.append('file', chunk, 'chunk.webm');
+
+        const response = await fetch('https://cf29-34-75-147-139.ngrok-free.app/process-audio', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+        
+        if (data.transcription) {
+            liveDiv.value += data.transcription + " ";
+            autoExpand(liveDiv);
+        }
+
+    } catch (error) {
+        console.error("Verwerkingsfout:", error);
+        liveDiv.value += "\n[Fout tijdens verwerking]";
+    }
+}
 
 </script>
 
