@@ -37,15 +37,6 @@
     .formatted-output ul { display: block; margin: 0 0 0.75rem 1.5rem; padding: 0; }
     .formatted-output li { display: list-item; margin-bottom: 0.5rem; }
     .formatted-output ul ul { margin-bottom: 0.5rem; margin-left: 1rem; }
-    /* Fade-in / fade-out voor de opname-overlay */
-#recording-overlay {           /* basis: onzichtbaar */
-  opacity: 0;
-  transition: opacity .4s ease;
-}
-#recording-overlay.visible {   /* zodra je deze klasse toevoegt */
-  opacity: 1;                  /* fade-t hij in (en weer uit als je ’m verwijdert) */
-}
-
   </style>
 </head>
 <body class="h-screen flex flex-col">
@@ -237,7 +228,9 @@
       overlay.classList.add('hidden');
       startBtn.disabled = false;
     }
-
+    function showOverlay(){ov.classList.remove('hidden');ov.classList.add('visible')}
+    function hideOverlay(cancel){ov.classList.remove('visible');setTimeout(()=>ov.classList.add('hidden'),400);start.disabled=false;cancelWaveform();if(strm)strm.getTracks().forEach(t=>t.stop());if(cancel)chunks=[]}
+    
     async function handleStop() {
       if(isCancelled) { isCancelled = false; return; }
       const audioBlob = new Blob(whisperChunks, { type:'audio/webm' });
