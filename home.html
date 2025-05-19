@@ -8,35 +8,16 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     /* Loading overlay */
-    #loading-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(255,255,255,0.8);
-      display: none; /* start hidden */
-      align-items: center;
-      justify-content: center;
-      z-index: 50;
-    }
-    /* Tailwind-spinner */
-    .spinner {
-      border: 4px solid #3b82f6; /* blauw */
-      border-top-color: transparent;
-      border-radius: 9999px; /* rond */
-      width: 3rem;
-      height: 3rem;
-      animation: spin 1s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    body { font-family: 'Inter', sans-serif; background: #f8fafc; }
-    .expanding-textarea { min-height: 80px; max-height: 640px; overflow-y: auto; resize: none; padding: 1rem 1rem 4rem; }
-    .formatted-output { background: transparent; border: none; box-shadow: none; padding: 0; }
-    .scrollable-box   { max-height: 240px; overflow-y: auto; background: transparent; padding: 0; }
-    .fade-in { opacity: 0; animation: fadeIn 0.5s ease-out forwards; }
-    @keyframes fadeIn { to { opacity: 1; } }
-    .formatted-output ul { display: block; margin: 0 0 0.75rem 1.5rem; padding: 0; }
-    .formatted-output li { display: list-item; margin-bottom: 0.5rem; }
-    .formatted-output ul ul { margin-bottom: 0.5rem; margin-left: 1rem; }
+    #loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.8);display:none;align-items:center;justify-content:center;z-index:50}
+    .spinner{border:4px solid #3b82f6;border-top-color:transparent;border-radius:9999px;width:3rem;height:3rem;animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+    body{font-family:'Inter',sans-serif;background:#f8fafc}
+    .expanding-textarea{min-height:80px;max-height:640px;overflow-y:auto;resize:none;padding:1rem 1rem 4rem}
+    .formatted-output{background:transparent;border:none;box-shadow:none;padding:0}
+    .scrollable-box{max-height:240px;overflow-y:auto;background:transparent;padding:0}
+    .fade-in{opacity:0;animation:fadeIn .5s ease-out forwards}@keyframes fadeIn{to{opacity:1}}
+    .formatted-output ul{display:block;margin:0 0 .75rem 1.5rem;padding:0}
+    .formatted-output li{display:list-item;margin-bottom:.5rem}
+    .formatted-output ul ul{margin-bottom:.5rem;margin-left:1rem}
   </style>
 </head>
 <body class="h-screen flex flex-col">
@@ -45,217 +26,89 @@
 
   <!-- Header -->
   <header class="flex items-center justify-between px-6 py-4 bg-white shadow">
-    <div class="flex items-center space-x-3">
-      <img src="static/images/logo.png" alt="Mediflow Logo" class="h-8 w-auto object-contain transform scale-[4] origin-left mt-2">
-    </div>
-    <div class="relative">
-      <img src="static/images/default.png" alt="Profiel" class="w-10 h-10 rounded-full border border-gray-300 cursor-pointer" onclick="toggleMenu()">
-      <div id="dropdown-menu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg z-50">
-        <a href="/account" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Account Instellingen</a>
-        <a href="index.html" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Uitloggen</a>
-      </div>
-    </div>
+    <div class="flex items-center space-x-3"><img src="static/images/logo.png" alt="Mediflow Logo" class="h-8 w-auto object-contain transform scale-[4] origin-left mt-2"></div>
+    <div class="relative"><img src="static/images/default.png" alt="Profiel" class="w-10 h-10 rounded-full border border-gray-300 cursor-pointer" onclick="toggleMenu()"><div id="dropdown-menu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg z-50"><a href="/account" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Account Instellingen</a><a href="index.html" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Uitloggen</a></div></div>
     <script>
-      function toggleMenu() { document.getElementById('dropdown-menu').classList.toggle('hidden'); }
-      window.addEventListener('click', e => { if(!e.target.closest('img') && !e.target.closest('#dropdown-menu')) document.getElementById('dropdown-menu').classList.add('hidden'); });
+      function toggleMenu(){document.getElementById('dropdown-menu').classList.toggle('hidden')}
+      window.addEventListener('click',e=>{if(!e.target.closest('img')&&!e.target.closest('#dropdown-menu'))document.getElementById('dropdown-menu').classList.add('hidden')})
     </script>
   </header>
 
   <!-- 🔊 Recording overlay -->
   <div id="recording-overlay" class="fixed inset-0 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm hidden z-50">
-    <!-- ❌ Cancel knop -->
     <button id="cancel-recording-btn" class="absolute top-6 right-6 text-3xl text-gray-500 hover:text-gray-700">&times;</button>
     <canvas id="waveform-canvas" class="w-full max-w-4xl h-40"></canvas>
-    <button id="soep-recording-btn" class="mt-8 px-10 py-4 bg-blue-600 text-white text-2xl font-bold rounded-full shadow-lg hover:bg-blue-700 transition">SOEP</button>
+    <button id="soep-recording-btn" class="mt-8 px-10 py-4 bg-[#2e5884] text-white text-2xl font-bold rounded-full shadow-lg hover:bg-[#274a70] transition">SOEP</button>
   </div>
 
   <main class="flex-1 px-8 py-10 flex flex-col items-center">
     <!-- Input Box -->
     <div class="mt-8 bg-white p-6 rounded-3xl shadow-sm border border-gray-200 w-2/3 mx-auto">
-      <div class="relative">
-        <textarea id="text-input" placeholder="Hier typen..." class="w-full p-4 text-lg placeholder-gray-400 bg-transparent outline-none expanding-textarea"></textarea>
-      </div>
+      <div class="relative"><textarea id="text-input" placeholder="Hier typen..." class="w-full p-4 text-lg placeholder-gray-400 bg-transparent outline-none expanding-textarea"></textarea></div>
       <button id="whisper-btn" class="mt-4 px-4 py-2 bg-blue-100 text-blue-700 rounded-full shadow hover:bg-blue-200 transition inline-flex items-center">🎙️ Start Opname</button>
     </div>
 
     <!-- Format Buttons -->
-    <div class="mt-4 flex justify-center">
-      <button id="generate-soep" class="px-8 py-3 bg-gray-200 text-gray-700 rounded-full shadow hover:bg-gray-300 font-medium">SOEP</button>
-    </div>
+    <div class="mt-4 flex justify-center"><button id="generate-soep" class="px-8 py-3 bg-gray-200 text-gray-700 rounded-full shadow hover:bg-gray-300 font-medium">SOEP</button></div>
 
     <!-- SOEP Verslag Container -->
     <div id="verslag-container" class="mt-8 w-2/3 space-y-6 hidden">
-      <template id="section-template">
-        <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 fade-in">
-          <h3 class="text-xl font-semibold mb-4">LETTER</h3>
-          <div class="relative">
-            <div class="scrollable-box"><div class="formatted-output text-lg leading-relaxed"></div></div>
-            <button class="absolute bottom-4 right-4 px-2 py-1 bg-gray-100 text-gray-700 rounded-full shadow">📋</button>
-          </div>
-        </div>
-      </template>
-      <div id="s-box"></div>
-      <div id="o-box"></div>
-      <div id="e-box"></div>
-      <div id="p-box"></div>
+      <template id="section-template"><div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 fade-in"><h3 class="text-xl font-semibold mb-4">LETTER</h3><div class="relative"><div class="scrollable-box"><div class="formatted-output text-lg leading-relaxed"></div></div><button class="absolute bottom-4 right-4 px-2 py-1 bg-gray-100 text-gray-700 rounded-full shadow">📋</button></div></div></template>
+      <div id="s-box"></div><div id="o-box"></div><div id="e-box"></div><div id="p-box"></div>
     </div>
   </main>
 
-  <!-- ✨ UTILITIES -->
+  <!-- 📋 Copy helper & bullet formatter -->
   <script>
-    // Bullet formatter
-    function formatBullets(text) {
-      const parts = text.split('•').slice(1);
-      let html = '<ul class="list-disc pl-6 mb-4">';
-      parts.forEach(p => { const item = p.trim(); if(item) html += `<li class=\"mb-2\">${item}</li>`; });
-      html += '</ul>'; return html;
-    }
-
-    // Build SOEP section
-    function createSection(letter, content) {
-      const tmpl  = document.getElementById('section-template');
-      const clone = tmpl.content.cloneNode(true);
-      clone.querySelector('h3').textContent = letter;
-      const outputDiv = clone.querySelector('.formatted-output');
-      const outputId  = `${letter.toLowerCase()}-output`;
-      outputDiv.id    = outputId;
-      const normalized = content.replace(/-\s*/g, '• ');
-      outputDiv.innerHTML = formatBullets(normalized);
-      clone.querySelector('button').setAttribute('onclick', `copyToClipboard('${outputId}')`);
-      return clone;
-    }
-
-    // Copy helper
-    function copyToClipboard(id) {
-      const field = document.getElementById(id);
-      if(!field) return console.error(`#${id} niet gevonden`);
-      const text = field.innerText || field.textContent;
-      navigator.clipboard.writeText(text).then(() => {
-        const orig = field.style.backgroundColor; field.style.backgroundColor = '#d1fae5';
-        setTimeout(() => field.style.backgroundColor = orig, 800);
-      }).catch(err => console.error('Fout bij kopiëren:', err));
-    }
+    function formatBullets(text){const parts=text.split('•').slice(1);let html='<ul class="list-disc pl-6 mb-4">';parts.forEach(p=>{const item=p.trim();if(item)html+=`<li class="mb-2">${item}</li>`});html+='</ul>';return html}
+    function createSection(letter,content){const tmpl=document.getElementById('section-template');const clone=tmpl.content.cloneNode(true);clone.querySelector('h3').textContent=letter;const output=clone.querySelector('.formatted-output');const id=`${letter.toLowerCase()}-output`;output.id=id;output.innerHTML=formatBullets(content.replace(/-\s*/g,'• '));clone.querySelector('button').setAttribute('onclick',`copyToClipboard('${id}')`);return clone}
+    function copyToClipboard(id){const el=document.getElementById(id);if(!el)return;navigator.clipboard.writeText(el.innerText||el.textContent).then(()=>{const orig=el.style.backgroundColor;el.style.backgroundColor='#d1fae5';setTimeout(()=>el.style.backgroundColor=orig,800)})}
   </script>
 
-  <!-- 🧠 SOEP generator function -->
+  <!-- 🧠 SOEP generator -->
   <script>
-    async function generateSOEP() {
-      const promptText = document.getElementById('text-input').value.trim();
-      if(!promptText) { alert('Transcriptie of tekst ontbreekt.'); return; }
-      const loader = document.getElementById('loading-overlay');
-      const btn    = document.getElementById('generate-soep');
-      loader.style.display = 'flex';
-      btn.disabled = true;
-      try {
-        const res  = await fetch('https://ff74-34-75-147-139.ngrok-free.app/generate-soep', {
-          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ prompt: promptText })
-        });
-        const data = await res.json();
-        if(data.error) throw new Error(data.error);
-        ['S','O','E','P'].forEach(letter => {
-          const box = document.getElementById(`${letter.toLowerCase()}-box`);
-          box.innerHTML = '';
-          box.appendChild(createSection(letter, data[letter.toLowerCase()]));
-        });
-        document.getElementById('verslag-container').classList.remove('hidden');
-        document.getElementById('verslag-container').scrollIntoView({ behavior:'smooth', block:'start' });
-      } catch(err) {
-        console.error(err);
-        alert('Serverfout bij SOEP-generatie.');
-      } finally {
-        loader.style.display = 'none';
-        btn.disabled = false;
-      }
-    }
-    document.getElementById('generate-soep').addEventListener('click', generateSOEP);
+    async function generateSOEP(){const txt=document.getElementById('text-input').value.trim();if(!txt)return alert('Transcriptie of tekst ontbreekt.');const loader=document.getElementById('loading-overlay');const btn=document.getElementById('generate-soep');loader.style.display='flex';btn.disabled=true;try{const res=await fetch('https://ff74-34-75-147-139.ngrok-free.app/generate-soep',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:txt})});const data=await res.json();if(data.error)throw new Error(data.error);['S','O','E','P'].forEach(l=>{const box=document.getElementById(`${l.toLowerCase()}-box`);box.innerHTML='';box.appendChild(createSection(l,data[l.toLowerCase()]))});document.getElementById('verslag-container').classList.remove('hidden');document.getElementById('verslag-container').scrollIntoView({behavior:'smooth'})}catch(e){alert('Serverfout bij SOEP-generatie.');console.error(e)}finally{loader.style.display='none';btn.disabled=false}}
+    document.getElementById('generate-soep').addEventListener('click',generateSOEP);
   </script>
 
+  <!-- 🎤 Recording + waveform -->
   <script>
-    let whisperRecorder=null,whisperStream=null,whisperChunks=[],audioCtx=null,analyser=null,dataArray=null,animationFrameId=null,isCancelled=false;
-    const startBtn=document.getElementById('whisper-btn'),overlay=document.getElementById('recording-overlay'),soepRecBtn=document.getElementById('soep-recording-btn'),cancelBtn=document.getElementById('cancel-recording-btn');
-    startBtn.addEventListener('click',startRecording);soepRecBtn.addEventListener('click',stopAndGenerate);cancelBtn.addEventListener('click',cancelRecording);
-    async function startRecording(){try{isCancelled=false;whisperStream=await navigator.mediaDevices.getUserMedia({audio:true});whisperChunks=[];const options=MediaRecorder.isTypeSupported('audio/webm')?{mimeType:'audio/webm'}:{mimeType:'audio/webm;codecs=opus'};whisperRecorder=new MediaRecorder(whisperStream,options);whisperRecorder.ondataavailable=e=>{if(e.data.size>0)whisperChunks.push(e.data)};whisperRecorder.onstop=handleStop;whisperRecorder.start();overlay.classList.remove('hidden');startBtn.disabled=true;initWaveform(whisperStream)}catch(err){console.error('🎤 Microfoonfout:',err);alert('❌ Kon microfoon niet starten.')}}
-    function cancelRecording(){if(whisperRecorder&&whisperRecorder.state==='recording'){isCancelled=true;whisperRecorder.stop()}overlay.classList.add('hidden');startBtn.disabled=false;cancelWaveform();if(whisperStream)whisperStream.getTracks().forEach(t=>t.stop());whisperChunks=[]}
-    function stopAndGenerate(){if(whisperRecorder&&whisperRecorder.state==='recording')whisperRecorder.stop();cancelWaveform();overlay.classList.add('hidden');startBtn.disabled=false}
-    async function handleStop(){if(isCancelled){isCancelled=false;return}const audioBlob=new Blob(whisperChunks,{type:'audio/webm'});const formData=new FormData();formData.append('file',audioBlob,'recording.webm');const loader=document.getElementById('loading-overlay');loader.style.display='flex';try{const response=await fetch('https://ff74-34-75-147-139.ngrok-free.app/transcribe-audio',{method:'POST',body:formData});const result=await response.json();if(result.error){alert('❌ Fout bij transcriptie: '+result.error);return}document.getElementById('text-input').value=result.transcription;await generateSOEP()}catch(err){console.error('❌ Fout bij uploaden of SOEP:',err);alert('Er ging iets mis tijdens transcriptie of SOEP-generatie.')}finally{loader.style.display='none';if(whisperStream)whisperStream.getTracks().forEach(t=>t.stop())}}
+    /* globale vars */
+    let whisperRecorder=null,whisperStream=null,whisperChunks=[];
+    let audioCtx=null,analyser=null,animationFrameId=null;
 
-let audioCtx, analyser, animationFrameId;
-const NUM_BARS = 40;                     // aantal kolommen
-const COLOR    = '#2e5884';
-let smoothData = new Float32Array(NUM_BARS);
+    const startBtn=document.getElementById('whisper-btn');
+    const overlay=document.getElementById('recording-overlay');
+    const soepBtn=document.getElementById('soep-recording-btn');
+    const cancelBtn=document.getElementById('cancel-recording-btn');
 
-function initWaveform(stream) {
-  /* canvas-setup – houd rekening met devicePixelRatio */
-  const canvas = document.getElementById('waveform-canvas');
-  const dpr    = window.devicePixelRatio || 1;
-  canvas.width  = canvas.clientWidth  * dpr;
-  canvas.height = canvas.clientHeight * dpr;
+    startBtn.addEventListener('click',startRecording);
+    soepBtn.addEventListener('click',stopAndGenerate);
+    cancelBtn.addEventListener('click',cancelRecording);
 
-  const ctx = canvas.getContext('2d');
-  ctx.scale(dpr, dpr);                  // teken in css-pixels
-  ctx.strokeStyle = COLOR;
-  ctx.lineCap     = 'round';            // ronde uiteinden
+    async function startRecording(){try{whisperStream=await navigator.mediaDevices.getUserMedia({audio:true});whisperChunks=[];whisperRecorder=new MediaRecorder(whisperStream,{mimeType:'audio/webm'});whisperRecorder.ondataavailable=e=>{if(e.data.size)whisperChunks.push(e.data)};whisperRecorder.onstop=handleStop;whisperRecorder.start();overlay.classList.remove('hidden');startBtn.disabled=true;initWaveform(whisperStream)}catch(err){alert('Kon microfoon niet starten.');console.error(err)}}
 
-  /* audio-analyse */
-  audioCtx  = new (window.AudioContext || window.webkitAudioContext)();
-  analyser  = audioCtx.createAnalyser();
-  analyser.fftSize = 1024;              // ruim genoeg sample-buffer
+    function cancelRecording(){if(whisperRecorder&&whisperRecorder.state==='recording')whisperRecorder.stop();resetUI(true)}
+    function stopAndGenerate(){if(whisperRecorder&&whisperRecorder.state==='recording')whisperRecorder.stop();resetUI(false)}
 
-  const source = audioCtx.createMediaStreamSource(stream);
-  source.connect(analyser);
+    function resetUI(cancelled){overlay.classList.add('hidden');startBtn.disabled=false;cancelWaveform();if(whisperStream)whisperStream.getTracks().forEach(t=>t.stop());if(cancelled)whisperChunks=[]}
 
-  const rawData = new Uint8Array(analyser.frequencyBinCount);
+    async function handleStop(){if(!whisperChunks.length)return;const blob=new Blob(whisperChunks,{type:'audio/webm'});const fd=new FormData();fd.append('file',blob,'recording.webm');document.getElementById('loading-overlay').style.display='flex';try{const res=await fetch('https://ff74-34-75-147-139.ngrok-free.app/transcribe-audio',{method:'POST',body:fd});const out=await res.json();if(out.error)throw new Error(out.error);document.getElementById('text-input').value=out.transcription;await generateSOEP()}catch(e){alert('Fout tijdens transcriptie of SOEP.');console.error(e)}finally{document.getElementById('loading-overlay').style.display='none';whisperChunks=[]}}
 
-  /* animatielus */
-  const draw = () => {
-    animationFrameId = requestAnimationFrame(draw);
+    /* Waveform */
+    const NUM_BARS=40,COLOR='#2e5884';
+    let smoothData=new Float32Array(NUM_BARS);
 
-    analyser.getByteTimeDomainData(rawData);
+    function initWaveform(stream){const canvas=document.getElementById('waveform-canvas');const dpr=window.devicePixelRatio||1;canvas.width=canvas.clientWidth*dpr;canvas.height=canvas.clientHeight*dpr;const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);ctx.strokeStyle=COLOR;ctx.lineCap='round';audioCtx=new(window.AudioContext||window.webkitAudioContext)();analyser=audioCtx.createAnalyser();analyser.fftSize=1024;const source=audioCtx.createMediaStreamSource(stream);source.connect(analyser);const raw=new Uint8Array(analyser.frequencyBinCount);
+      const draw=()=>{animationFrameId=requestAnimationFrame(draw);analyser.getByteTimeDomainData(raw);const step=Math.floor(raw.length/NUM_BARS);for(let i=0;i<NUM_BARS;i++){const target=(raw[i*step]/255)*canvas.height*0.4;smoothData[i]=smoothData[i]*0.8+target*0.2}ctx.clearRect(0,0,canvas.width/dpr,canvas.height/dpr);const barSpace=(canvas.width/dpr)/NUM_BARS;const mid=(canvas.height/dpr)/2;ctx.lineWidth=barSpace*0.6;for(let i=0;i<NUM_BARS;i++){const h=smoothData[i];const x=i*barSpace+barSpace/2;ctx.beginPath();ctx.moveTo(x,mid-h/2);ctx.lineTo(x,mid+h/2);ctx.stroke()}}
+      draw()}
 
-    /* down-samplen naar NUM_BARS en een kleine easing voor smoothness */
-    const step = Math.floor(rawData.length / NUM_BARS);
-    for (let i = 0; i < NUM_BARS; i++) {
-      const target = (rawData[i * step] / 255) * canvas.height * 0.4; // max 40 % vh canvas
-      smoothData[i] = smoothData[i] * 0.8 + target * 0.2;             // easing
-    }
-
-    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
-
-    const barSpacing = (canvas.width / dpr) / NUM_BARS;
-    const centreY    = (canvas.height / dpr) / 2;
-
-    /* tekenen */
-    ctx.lineWidth = barSpacing * 0.6;   // mooie dikke balk
-    for (let i = 0; i < NUM_BARS; i++) {
-      const h = smoothData[i];
-      const x = i * barSpacing + barSpacing / 2;
-      ctx.beginPath();
-      ctx.moveTo(x, centreY - h / 2);
-      ctx.lineTo(x, centreY + h / 2);
-      ctx.stroke();
-    }
-  };
-
-  draw();
-}
-
-function cancelWaveform() {
-  if (animationFrameId) cancelAnimationFrame(animationFrameId);
-  if (audioCtx) audioCtx.close();
-  const canvas = document.getElementById('waveform-canvas');
-  if (canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-}
-</script>
+    function cancelWaveform(){if(animationFrameId)cancelAnimationFrame(animationFrameId);if(audioCtx)audioCtx.close();const canvas=document.getElementById('waveform-canvas');const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height)}
+  </script>
 
   <!-- 📝 Auto-expanding textareas -->
   <script>
-    document.querySelectorAll('.expanding-textarea').forEach(t => {
-      const max = 640;
-      const adjust = () => { t.style.height = 'auto'; const h = Math.min(t.scrollHeight, max); t.style.height = h+'px'; t.style.overflowY = t.scrollHeight>max ? 'auto' : 'hidden'; };
-      t.addEventListener('input', adjust);
-      t.addEventListener('paste', () => setTimeout(adjust,0));
-      adjust();
-    });
+    document.querySelectorAll('.expanding-textarea').forEach(t=>{const max=640;const f=()=>{t.style.height='auto';const h=Math.min(t.scrollHeight,max);t.style.height=h+'px';t.style.overflowY=t.scrollHeight>max?'auto':'hidden'};t.addEventListener('input',f);t.addEventListener('paste',()=>setTimeout(f,0));f()});
   </script>
 </body>
 </html>
