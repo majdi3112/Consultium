@@ -217,7 +217,7 @@
       loader.style.display = 'flex';
       btn.disabled = true;
       try {
-        const res = await fetch('https://e3b7-2001-1c00-9901-3500-7829-6a97-7f65-524e.ngrok-free.app//generate-soep', {
+        const res = await fetch('https://e3b7-2001-1c00-9901-3500-7829-6a97-7f65-524e.ngrok-free.app/generate-soep', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ prompt: promptText })
@@ -315,7 +315,7 @@
       const loader = document.getElementById('loading-overlay');
       loader.style.display = 'flex';
       try {
-        const response = await fetch('https://e3b7-2001-1c00-9901-3500-7829-6a97-7f65-524e.ngrok-free.app//transcribe-audio', {
+        const response = await fetch('https://e3b7-2001-1c00-9901-3500-7829-6a97-7f65-524e.ngrok-free.app/transcribe-audio', {
           method: 'POST',
           body: formData
         });
