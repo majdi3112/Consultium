@@ -106,12 +106,12 @@
                   class="w-full p-4 text-lg placeholder-gray-400 bg-transparent outline-none expanding-textarea"
                   readonly></textarea>
       </div>
-      <!-- Bestaande “Start Opname” knop -->
+      <!-- Bestaande "Start Opname" knop -->
       <button id="whisper-btn"
               class="mt-4 px-4 py-2 bg-blue-100 text-blue-700 rounded-full shadow hover:bg-blue-200 transition inline-flex items-center">
         🎙️ Start Opname
       </button>
-      <!-- Nieuwe “Live Whisper” knop -->
+      <!-- Nieuwe "Live Whisper" knop -->
       <button id="live-whisper-btn" class="btn-live">
         🎙️ Live Whisper
       </button>
@@ -201,7 +201,7 @@
       loader.style.display = 'flex';
       btn.disabled = true;
       try {
-        const res = await fetch('https://3005-2001-1c00-9901-3500-7829-6a97-7f65-524e.ngrok-free.app/generate-soep', {
+        const res = await fetch('https://bae2-2001-1c00-9901-3500-7829-6a97-7f65-524e.ngrok-free.app/generate-soep', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ prompt: promptText })
@@ -299,7 +299,7 @@
       const loader = document.getElementById('loading-overlay');
       loader.style.display = 'flex';
       try {
-        const response = await fetch('https://3005-2001-1c00-9901-3500-7829-6a97-7f65-524e.ngrok-free.app/transcribe-audio', {
+        const response = await fetch('https://bae2-2001-1c00-9901-3500-7829-6a97-7f65-524e.ngrok-free.app/transcribe-audio', {
           method: 'POST',
           body: formData
         });
@@ -388,74 +388,122 @@
   </script>
 
   <!-- 🗣️ LIVE WHISPER (Socket.IO + MediaRecorder) -->
-  <!-- Voeg deze Socket.IO-client direct voor het scriptblok onderaan toe -->
-  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"
-          integrity="sha384-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-          crossorigin="anonymous"></script>
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
   <script>
-    // 1) Maak Socket.IO-verbinding (pas de URL aan naar jouw server indien nodig)
-    const socket = io('http://localhost:5000');
+    // Get the current ngrok URL from the window location
+    const currentUrl = window.location.href;
+    const baseUrl = currentUrl.split('/index')[0];  // Remove '/index' if present
+    
+    // Initialize Socket.IO connection
+    const socket = io(baseUrl, {
+        withCredentials: true,
+        transports: ['websocket'],
+        upgrade: false
+    });
 
     const liveBtn = document.getElementById('live-whisper-btn');
     const transcriptArea = document.getElementById('text-input');
     let mediaRecorderLive = null;
+    let isRecording = false;
 
-    // 2) Luister naar server-event 'transcription_result'
-    socket.on('transcription_result', (data) => {
-      const tekst = data.text || '';
-      transcriptArea.value += tekst + '\n';
-      transcriptArea.scrollTop = transcriptArea.scrollHeight;
+    // Socket.IO event handlers
+    socket.on('connect', () => {
+        console.log('Connected to server');
     });
 
-    // 3) Handler voor “Live Whisper” knop (start/stop)
-    liveBtn.addEventListener('click', async () => {
-      if (mediaRecorderLive && mediaRecorderLive.state === 'recording') {
-        // Stop live-Whisper
-        mediaRecorderLive.stop();
+    socket.on('disconnect', () => {
+        console.log('Disconnected from server');
+        stopRecording();
+    });
+
+    socket.on('transcription_result', (data) => {
+        const tekst = data.text || '';
+        if (tekst.trim()) {
+            transcriptArea.value += tekst + ' ';
+            transcriptArea.scrollTop = transcriptArea.scrollHeight;
+        }
+    });
+
+    socket.on('error', (data) => {
+        console.error('Server error:', data.message);
+        alert('Error during transcription: ' + data.message);
+        stopRecording();
+    });
+
+    // Helper function to stop recording
+    function stopRecording() {
+        if (mediaRecorderLive && mediaRecorderLive.state === 'recording') {
+            mediaRecorderLive.stop();
+        }
+        if (isRecording) {
+            socket.emit('stop_transcription');
+        }
         liveBtn.textContent = '🎙️ Live Whisper';
         liveBtn.classList.remove('recording');
-        socket.emit('stop_transcription');
-      } else {
-        try {
-          // Vraag microfoon-toegang
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          mediaRecorderLive = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+        isRecording = false;
+    }
 
-          // Bij elke dataavailable (elk 500ms chunk)
-          mediaRecorderLive.ondataavailable = (event) => {
-            if (event.data && event.data.size > 0) {
-              event.data.arrayBuffer().then(buffer => {
-                // Stuur chunk (binary) naar de server
-                socket.emit('audio_chunk', buffer);
-              });
+    // Live Whisper button handler
+    liveBtn.addEventListener('click', async () => {
+        if (isRecording) {
+            stopRecording();
+        } else {
+            try {
+                // Request microphone access
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        channelCount: 1,
+                        sampleRate: 16000
+                    }
+                });
+
+                // Create MediaRecorder
+                mediaRecorderLive = new MediaRecorder(stream, {
+                    mimeType: 'audio/webm;codecs=opus',
+                    audioBitsPerSecond: 16000
+                });
+
+                // Handle audio chunks
+                mediaRecorderLive.ondataavailable = async (event) => {
+                    if (event.data.size > 0 && isRecording) {
+                        try {
+                            const arrayBuffer = await event.data.arrayBuffer();
+                            const float32Array = new Float32Array(arrayBuffer);
+                            socket.emit('audio_chunk', float32Array);
+                        } catch (err) {
+                            console.error('Error processing audio chunk:', err);
+                        }
+                    }
+                };
+
+                // Start recording setup
+                mediaRecorderLive.onstart = () => {
+                    transcriptArea.value = ''; // Clear previous transcription
+                    socket.emit('start_transcription');
+                    liveBtn.textContent = '🛑 Stop Live Whisper';
+                    liveBtn.classList.add('recording');
+                    isRecording = true;
+                };
+
+                // Cleanup on stop
+                mediaRecorderLive.onstop = () => {
+                    stream.getTracks().forEach(track => track.stop());
+                    isRecording = false;
+                };
+
+                // Start recording with 1-second chunks
+                mediaRecorderLive.start(1000);
+
+            } catch (err) {
+                console.error('Error starting live transcription:', err);
+                alert('Could not start microphone: ' + err.message);
+                stopRecording();
             }
-          };
-
-          // Zodra opname gestart is
-          mediaRecorderLive.onstart = () => {
-            transcriptArea.value = ''; // oude transcriptie wissen
-            socket.emit('start_transcription');
-            liveBtn.textContent = '🛑 Stop Live Whisper';
-            liveBtn.classList.add('recording');
-          };
-
-          // Zodra opname stopt
-          mediaRecorderLive.onstop = () => {
-            socket.emit('stop_transcription');
-            liveBtn.textContent = '🎙️ Live Whisper';
-            liveBtn.classList.remove('recording');
-            // Sluit microfoon-stream
-            mediaRecorderLive.stream.getTracks().forEach(t => t.stop());
-          };
-
-          // Start opname met 500ms-chunks
-          mediaRecorderLive.start(500);
-        } catch (err) {
-          console.error('🚫 Fout bij live transcriptie starten:', err);
-          alert('Kon geen microfoon starten: ' + err.message);
         }
-      }
     });
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', stopRecording);
   </script>
 </body>
 </html>
