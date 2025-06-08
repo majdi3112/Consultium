@@ -46,10 +46,26 @@
 
     /* Knopstijl voor Live Whisper */
     .btn-live {
-      @apply mt-4 ml-4 px-4 py-2 bg-green-100 text-green-700 rounded-full shadow hover:bg-green-200 transition inline-flex items-center;
+      margin-top: 1rem;
+      margin-left: 1rem;
+      padding: 0.5rem 1rem;
+      background-color: rgb(220, 252, 231);
+      color: rgb(21, 128, 61);
+      border-radius: 9999px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+    }
+    .btn-live:hover {
+      background-color: rgb(187, 247, 208);
     }
     .btn-live.recording {
-      @apply bg-red-100 text-red-700 hover:bg-red-200;
+      background-color: rgb(254, 226, 226);
+      color: rgb(185, 28, 28);
+    }
+    .btn-live.recording:hover {
+      background-color: rgb(254, 202, 202);
     }
   </style>
 </head>
@@ -201,7 +217,7 @@
       loader.style.display = 'flex';
       btn.disabled = true;
       try {
-        const res = await fetch('https://f96d-2001-1c00-9901-3500-7829-6a97-7f65-524e.ngrok-free.app/generate-soep', {
+        const res = await fetch('https://e3b7-2001-1c00-9901-3500-7829-6a97-7f65-524e.ngrok-free.app//generate-soep', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ prompt: promptText })
@@ -299,7 +315,7 @@
       const loader = document.getElementById('loading-overlay');
       loader.style.display = 'flex';
       try {
-        const response = await fetch('https://f96d-2001-1c00-9901-3500-7829-6a97-7f65-524e.ngrok-free.app/transcribe-audio', {
+        const response = await fetch('https://e3b7-2001-1c00-9901-3500-7829-6a97-7f65-524e.ngrok-free.app//transcribe-audio', {
           method: 'POST',
           body: formData
         });
@@ -392,8 +408,8 @@
   <script>
     // Initialize Socket.IO connection with proper configuration
     const BACKEND_WS_URL = window.location.protocol === 'https:' 
-        ? 'wss://' + window.location.host
-        : 'ws://' + window.location.host;
+        ? 'wss://' + window.location.host + '/ws'
+        : 'ws://' + window.location.host + '/ws';
         
     const socket = io(BACKEND_WS_URL, {
         transports: ['websocket'],
@@ -402,6 +418,22 @@
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
         timeout: 20000
+    });
+
+    // Improved error handling
+    socket.on('connect_error', (error) => {
+        console.error('WebSocket connection error:', error);
+        alert('Connection error. Please check your network connection and try again.');
+    });
+
+    socket.on('connect_timeout', () => {
+        console.error('WebSocket connection timeout');
+        alert('Connection timeout. Please try again.');
+    });
+
+    socket.on('error', (error) => {
+        console.error('WebSocket error:', error);
+        alert('An error occurred. Please try again.');
     });
 
     const liveBtn = document.getElementById('live-whisper-btn');
@@ -468,10 +500,22 @@
                 }
                 
                 if (this._bytesWritten >= this._bufferSize) {
+                    // Ensure the chunk size is a multiple of 4
+                    const alignedSize = Math.floor(this._bufferSize / 4) * 4;
+                    const chunk = this._buffer.slice(0, alignedSize);
+                    
                     this.port.postMessage({
-                        audioData: this._buffer.slice(0, this._bufferSize)
+                        audioData: chunk
                     });
-                    this._bytesWritten = 0;
+                    
+                    // Move remaining samples to start of buffer
+                    const remaining = this._bufferSize - alignedSize;
+                    if (remaining > 0) {
+                        this._buffer.copyWithin(0, alignedSize);
+                        this._bytesWritten = remaining;
+                    } else {
+                        this._bytesWritten = 0;
+                    }
                 }
                 
                 return true;
@@ -550,8 +594,11 @@
                 // Handle audio chunks from worklet
                 audioWorkletNode.port.onmessage = (event) => {
                     if (isRecording && event.data.audioData) {
-                        const paddedData = padAudioData(event.data.audioData);
-                        socket.emit('audio_chunk', paddedData.buffer);
+                        // Ensure the audio data is properly aligned
+                        const audioData = padAudioData(event.data.audioData);
+                        
+                        // Convert to buffer for WebSocket transmission
+                        socket.emit('audio_chunk', audioData.buffer);
                     }
                 };
 
