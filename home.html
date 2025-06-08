@@ -74,10 +74,30 @@
   <div id="loading-overlay" class="flex"><div class="spinner"></div></div>
 
   <script>
-    // Global configuration
-    const BASE_URL = window.location.hostname.includes('github.io') 
-      ? 'https://3db5-2001-1c00-9901-3500-7829-6a97-7f65-524e.ngrok-free.app'
-      : '';
+    // Global configuration and WebSocket setup
+    let BASE_URL = '';
+    let WS_URL = '';
+
+    // Function to initialize URLs
+    async function initializeURLs() {
+      try {
+        // For local development, use empty base URL
+        if (!window.location.hostname.includes('github.io')) {
+          BASE_URL = '';
+          WS_URL = `ws://${window.location.hostname}:8000`;
+        } else {
+          // For production/GitHub Pages, use ngrok URL
+          BASE_URL = 'https://cd47-2001-1c00-9901-3500-7829-6a97-7f65-524e.ngrok-free.app';
+          WS_URL = BASE_URL.replace('https://', 'wss://');
+        }
+        console.log('URLs initialized:', { BASE_URL, WS_URL });
+      } catch (error) {
+        console.error('Failed to initialize URLs:', error);
+      }
+    }
+
+    // Initialize URLs when page loads
+    initializeURLs();
   </script>
 
   <!-- Header -->
@@ -413,21 +433,22 @@
   <!-- 🗣️ LIVE WHISPER -->
   <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
   <script>
-    // Get the base URL for API calls
-    const BASE_URL = window.location.hostname.includes('github.io') 
-      ? 'https://3db5-2001-1c00-9901-3500-7829-6a97-7f65-524e.ngrok-free.app'
-      : '';
+    let socket = null;
 
-    // Initialize WebSocket connection with dynamic URL
+    // Initialize WebSocket connection
     async function initializeWebSocket() {
       try {
-        // Get WebSocket URL from backend
-        const response = await fetch(`${BASE_URL}/ws-url`);
-        const data = await response.json();
-        const wsUrl = data.url;
-        
-        // Initialize Socket.IO with proper configuration
-        const socket = io(wsUrl, {
+        if (!WS_URL) {
+          throw new Error('WebSocket URL not available');
+        }
+
+        // Close existing connection if any
+        if (socket) {
+          socket.close();
+        }
+
+        // Create new Socket.IO instance
+        socket = io(WS_URL, {
           transports: ['websocket'],
           path: '/socket.io/',
           reconnection: true,
@@ -438,7 +459,7 @@
 
         // Socket event handlers
         socket.on('connect', () => {
-          console.log('Connected to WebSocket');
+          console.log('WebSocket connected successfully');
           document.getElementById('live-whisper-btn').disabled = false;
         });
 
@@ -461,154 +482,15 @@
       }
     }
 
-    // AudioWorklet for precise chunk size control
-    const workletCode = `
-      class AudioChunkProcessor extends AudioWorkletProcessor {
-        constructor() {
-          super();
-          this._bufferSize = 4096;  // Must be multiple of 4
-          this._buffer = new Float32Array(this._bufferSize);
-          this._bytesWritten = 0;
-        }
-        
-        process(inputs, outputs, parameters) {
-          const input = inputs[0][0];
-          if (!input) return true;
-          
-          // Ensure we only write complete chunks
-          const samplesToWrite = Math.min(
-            input.length,
-            this._bufferSize - this._bytesWritten
-          );
-          
-          // Copy input samples to buffer
-          this._buffer.set(input.slice(0, samplesToWrite), this._bytesWritten);
-          this._bytesWritten += samplesToWrite;
-          
-          // If buffer is full, send it
-          if (this._bytesWritten >= this._bufferSize) {
-            this.port.postMessage(this._buffer);
-            this._buffer = new Float32Array(this._bufferSize);
-            this._bytesWritten = 0;
-          }
-          
-          return true;
-        }
-      }
-      
-      registerProcessor('audio-chunk-processor', AudioChunkProcessor);
-    `;
-
-    let socket = null;
-    let audioContext = null;
-    let audioWorkletNode = null;
-    let mediaStream = null;
-    let isRecording = false;
-
     // Initialize everything when the page loads
     window.addEventListener('load', async () => {
       try {
-        socket = await initializeWebSocket();
-        
-        const liveBtn = document.getElementById('live-whisper-btn');
-        liveBtn.addEventListener('click', async () => {
-          if (isRecording) {
-            await stopRecording();
-          } else {
-            await startRecording();
-          }
-        });
+        await initializeURLs();
+        await initializeWebSocket();
       } catch (error) {
         console.error('Initialization failed:', error);
       }
     });
-
-    async function startRecording() {
-      try {
-        // Initialize audio context with proper settings
-        audioContext = new (window.AudioContext || window.webkitAudioContext)({
-          sampleRate: 16000,
-          channelCount: 1,
-          latencyHint: 'interactive'
-        });
-
-        // Load and register the AudioWorklet
-        const workletBlob = new Blob([workletCode], { type: 'application/javascript' });
-        const workletUrl = URL.createObjectURL(workletBlob);
-        await audioContext.audioWorklet.addModule(workletUrl);
-        URL.revokeObjectURL(workletUrl);
-
-        // Create audio processing chain
-        audioWorkletNode = new AudioWorkletNode(audioContext, 'audio-chunk-processor');
-        audioWorkletNode.port.onmessage = (event) => {
-          if (socket && socket.connected) {
-            socket.emit('audio_chunk', event.data.buffer);
-          }
-        };
-
-        // Get microphone stream
-        mediaStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            channelCount: 1,
-            sampleRate: 16000,
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          }
-        });
-
-        // Connect audio nodes
-        const sourceNode = audioContext.createMediaStreamSource(mediaStream);
-        sourceNode.connect(audioWorkletNode);
-
-        // Update UI
-        isRecording = true;
-        const liveBtn = document.getElementById('live-whisper-btn');
-        liveBtn.classList.add('recording');
-        liveBtn.textContent = '⏹️ Stop Live Whisper';
-
-        // Start transcription
-        socket.emit('start_transcription');
-
-      } catch (error) {
-        console.error('Failed to start recording:', error);
-        await stopRecording();
-      }
-    }
-
-    async function stopRecording() {
-      try {
-        // Stop transcription
-        if (socket && socket.connected) {
-          socket.emit('stop_transcription');
-        }
-
-        // Clean up audio resources
-        if (mediaStream) {
-          mediaStream.getTracks().forEach(track => track.stop());
-          mediaStream = null;
-        }
-
-        if (audioWorkletNode) {
-          audioWorkletNode.disconnect();
-          audioWorkletNode = null;
-        }
-
-        if (audioContext) {
-          await audioContext.close();
-          audioContext = null;
-        }
-
-        // Update UI
-        isRecording = false;
-        const liveBtn = document.getElementById('live-whisper-btn');
-        liveBtn.classList.remove('recording');
-        liveBtn.textContent = '🗣️ Start Live Whisper';
-
-      } catch (error) {
-        console.error('Failed to stop recording:', error);
-      }
-    }
   </script>
 </body>
 </html>
