@@ -406,223 +406,197 @@
   <!-- 🗣️ LIVE WHISPER -->
   <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
   <script>
-    // Initialize Socket.IO connection with proper configuration
-    const BACKEND_WS_URL = window.location.protocol === 'https:' 
-        ? 'wss://' + window.location.host + '/ws'
-        : 'ws://' + window.location.host + '/ws';
+    // Initialize WebSocket connection with dynamic URL
+    async function initializeWebSocket() {
+      try {
+        // Get WebSocket URL from backend
+        const response = await fetch('/ws-url');
+        const data = await response.json();
+        const wsUrl = data.url;
         
-    const socket = io(BACKEND_WS_URL, {
-        transports: ['websocket'],
-        path: '/socket.io/',
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
-        timeout: 20000
-    });
+        // Initialize Socket.IO with proper configuration
+        const socket = io(wsUrl, {
+          transports: ['websocket'],
+          path: '/socket.io/',
+          reconnection: true,
+          reconnectionAttempts: 5,
+          reconnectionDelay: 1000,
+          timeout: 20000
+        });
 
-    // Improved error handling
-    socket.on('connect_error', (error) => {
-        console.error('WebSocket connection error:', error);
-        alert('Connection error. Please check your network connection and try again.');
-    });
+        // Socket event handlers
+        socket.on('connect', () => {
+          console.log('Connected to WebSocket');
+          document.getElementById('live-whisper-btn').disabled = false;
+        });
 
-    socket.on('connect_timeout', () => {
-        console.error('WebSocket connection timeout');
-        alert('Connection timeout. Please try again.');
-    });
+        socket.on('connect_error', (error) => {
+          console.error('WebSocket connection error:', error);
+          document.getElementById('live-whisper-btn').disabled = true;
+        });
 
-    socket.on('error', (error) => {
-        console.error('WebSocket error:', error);
-        alert('An error occurred. Please try again.');
-    });
+        socket.on('transcription_result', (data) => {
+          const transcriptArea = document.getElementById('text-input');
+          transcriptArea.value += data.text + ' ';
+          transcriptArea.scrollTop = transcriptArea.scrollHeight;
+        });
 
-    const liveBtn = document.getElementById('live-whisper-btn');
-    const transcriptArea = document.getElementById('text-input');
-    let mediaRecorderLive = null;
-    let isRecording = false;
-    let audioContext = null;
-    let audioWorkletNode = null;
-
-    // Socket.IO event handlers with improved error handling
-    socket.on('connect', () => {
-        console.log('Connected to WebSocket server');
-        liveBtn.disabled = false;
-    });
-
-    socket.on('connect_error', (error) => {
-        console.error('WebSocket connection error:', error);
-        liveBtn.disabled = true;
-        stopRecording();
-    });
-
-    socket.on('disconnect', () => {
-        console.log('Disconnected from WebSocket server');
-        liveBtn.disabled = true;
-        stopRecording();
-    });
-
-    socket.on('transcription_result', (data) => {
-        const text = data.text || '';
-        if (text.trim()) {
-            transcriptArea.value += text + ' ';
-            transcriptArea.scrollTop = transcriptArea.scrollHeight;
-        }
-    });
-
-    socket.on('error', (data) => {
-        console.error('Server error:', data);
-        alert('Error during transcription: ' + data.message);
-    });
+        return socket;
+      } catch (error) {
+        console.error('Failed to initialize WebSocket:', error);
+        document.getElementById('live-whisper-btn').disabled = true;
+        throw error;
+      }
+    }
 
     // AudioWorklet for precise chunk size control
     const workletCode = `
-        class AudioChunkProcessor extends AudioWorkletProcessor {
-            constructor() {
-                super();
-                this._bufferSize = 4096;  // Must be multiple of 4
-                this._buffer = new Float32Array(this._bufferSize);
-                this._bytesWritten = 0;
-            }
-            
-            process(inputs, outputs, parameters) {
-                const input = inputs[0][0];
-                if (!input) return true;
-                
-                // Ensure we only write complete chunks
-                const samplesToWrite = Math.min(
-                    input.length,
-                    this._bufferSize - this._bytesWritten
-                );
-                
-                for (let i = 0; i < samplesToWrite; i++) {
-                    this._buffer[this._bytesWritten] = input[i];
-                    this._bytesWritten++;
-                }
-                
-                if (this._bytesWritten >= this._bufferSize) {
-                    // Ensure the chunk size is a multiple of 4
-                    const alignedSize = Math.floor(this._bufferSize / 4) * 4;
-                    const chunk = this._buffer.slice(0, alignedSize);
-                    
-                    this.port.postMessage({
-                        audioData: chunk
-                    });
-                    
-                    // Move remaining samples to start of buffer
-                    const remaining = this._bufferSize - alignedSize;
-                    if (remaining > 0) {
-                        this._buffer.copyWithin(0, alignedSize);
-                        this._bytesWritten = remaining;
-                    } else {
-                        this._bytesWritten = 0;
-                    }
-                }
-                
-                return true;
-            }
+      class AudioChunkProcessor extends AudioWorkletProcessor {
+        constructor() {
+          super();
+          this._bufferSize = 4096;  // Must be multiple of 4
+          this._buffer = new Float32Array(this._bufferSize);
+          this._bytesWritten = 0;
         }
-        registerProcessor('audio-chunk-processor', AudioChunkProcessor);
+        
+        process(inputs, outputs, parameters) {
+          const input = inputs[0][0];
+          if (!input) return true;
+          
+          // Ensure we only write complete chunks
+          const samplesToWrite = Math.min(
+            input.length,
+            this._bufferSize - this._bytesWritten
+          );
+          
+          // Copy input samples to buffer
+          this._buffer.set(input.slice(0, samplesToWrite), this._bytesWritten);
+          this._bytesWritten += samplesToWrite;
+          
+          // If buffer is full, send it
+          if (this._bytesWritten >= this._bufferSize) {
+            this.port.postMessage(this._buffer);
+            this._buffer = new Float32Array(this._bufferSize);
+            this._bytesWritten = 0;
+          }
+          
+          return true;
+        }
+      }
+      
+      registerProcessor('audio-chunk-processor', AudioChunkProcessor);
     `;
 
-    // Helper function to ensure audio data length is multiple of 4
-    function padAudioData(audioData) {
-        const remainder = audioData.length % 4;
-        if (remainder === 0) return audioData;
+    let socket = null;
+    let audioContext = null;
+    let audioWorkletNode = null;
+    let mediaStream = null;
+    let isRecording = false;
+
+    // Initialize everything when the page loads
+    window.addEventListener('load', async () => {
+      try {
+        socket = await initializeWebSocket();
         
-        const paddedLength = audioData.length + (4 - remainder);
-        const paddedData = new Float32Array(paddedLength);
-        paddedData.set(audioData);
-        // Fill remaining samples with silence
-        for (let i = audioData.length; i < paddedLength; i++) {
-            paddedData[i] = 0;
-        }
-        return paddedData;
-    }
-
-    // Helper function to stop recording with proper cleanup
-    async function stopRecording() {
-        if (audioWorkletNode) {
-            audioWorkletNode.disconnect();
-            audioWorkletNode = null;
-        }
-        if (audioContext) {
-            await audioContext.close();
-            audioContext = null;
-        }
-        if (isRecording) {
-            socket.emit('stop_transcription');
-        }
-        liveBtn.textContent = '🎙️ Live Whisper';
-        liveBtn.classList.remove('recording');
-        isRecording = false;
-    }
-
-    // Live Whisper button handler with improved audio setup
-    liveBtn.addEventListener('click', async () => {
-        if (isRecording) {
+        const liveBtn = document.getElementById('live-whisper-btn');
+        liveBtn.addEventListener('click', async () => {
+          if (isRecording) {
             await stopRecording();
-        } else {
-            try {
-                // Initialize audio context with proper settings
-                audioContext = new (window.AudioContext || window.webkitAudioContext)({
-                    sampleRate: 16000,
-                    channelCount: 1,
-                    latencyHint: 'interactive'
-                });
-
-                // Load and register the AudioWorklet
-                const workletBlob = new Blob([workletCode], { type: 'application/javascript' });
-                const workletUrl = URL.createObjectURL(workletBlob);
-                await audioContext.audioWorklet.addModule(workletUrl);
-                URL.revokeObjectURL(workletUrl);
-
-                // Get microphone access with optimal settings
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    audio: {
-                        channelCount: 1,
-                        sampleRate: 16000,
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        autoGainControl: true
-                    }
-                });
-
-                // Set up audio processing pipeline
-                const source = audioContext.createMediaStreamSource(stream);
-                audioWorkletNode = new AudioWorkletNode(audioContext, 'audio-chunk-processor');
-                
-                // Handle audio chunks from worklet
-                audioWorkletNode.port.onmessage = (event) => {
-                    if (isRecording && event.data.audioData) {
-                        // Ensure the audio data is properly aligned
-                        const audioData = padAudioData(event.data.audioData);
-                        
-                        // Convert to buffer for WebSocket transmission
-                        socket.emit('audio_chunk', audioData.buffer);
-                    }
-                };
-
-                // Connect audio nodes
-                source.connect(audioWorkletNode);
-                audioWorkletNode.connect(audioContext.destination);
-
-                // Start recording
-                isRecording = true;
-                socket.emit('start_transcription');
-                liveBtn.textContent = '🛑 Stop Live Whisper';
-                liveBtn.classList.add('recording');
-                transcriptArea.value = '';
-
-            } catch (err) {
-                console.error('Error starting live transcription:', err);
-                alert('Could not start microphone: ' + err.message);
-                await stopRecording();
-            }
-        }
+          } else {
+            await startRecording();
+          }
+        });
+      } catch (error) {
+        console.error('Initialization failed:', error);
+      }
     });
 
-    // Cleanup on page unload
-    window.addEventListener('beforeunload', stopRecording);
+    async function startRecording() {
+      try {
+        // Initialize audio context with proper settings
+        audioContext = new (window.AudioContext || window.webkitAudioContext)({
+          sampleRate: 16000,
+          channelCount: 1,
+          latencyHint: 'interactive'
+        });
+
+        // Load and register the AudioWorklet
+        const workletBlob = new Blob([workletCode], { type: 'application/javascript' });
+        const workletUrl = URL.createObjectURL(workletBlob);
+        await audioContext.audioWorklet.addModule(workletUrl);
+        URL.revokeObjectURL(workletUrl);
+
+        // Create audio processing chain
+        audioWorkletNode = new AudioWorkletNode(audioContext, 'audio-chunk-processor');
+        audioWorkletNode.port.onmessage = (event) => {
+          if (socket && socket.connected) {
+            socket.emit('audio_chunk', event.data.buffer);
+          }
+        };
+
+        // Get microphone stream
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            channelCount: 1,
+            sampleRate: 16000,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+
+        // Connect audio nodes
+        const sourceNode = audioContext.createMediaStreamSource(mediaStream);
+        sourceNode.connect(audioWorkletNode);
+
+        // Update UI
+        isRecording = true;
+        const liveBtn = document.getElementById('live-whisper-btn');
+        liveBtn.classList.add('recording');
+        liveBtn.textContent = '⏹️ Stop Live Whisper';
+
+        // Start transcription
+        socket.emit('start_transcription');
+
+      } catch (error) {
+        console.error('Failed to start recording:', error);
+        await stopRecording();
+      }
+    }
+
+    async function stopRecording() {
+      try {
+        // Stop transcription
+        if (socket && socket.connected) {
+          socket.emit('stop_transcription');
+        }
+
+        // Clean up audio resources
+        if (mediaStream) {
+          mediaStream.getTracks().forEach(track => track.stop());
+          mediaStream = null;
+        }
+
+        if (audioWorkletNode) {
+          audioWorkletNode.disconnect();
+          audioWorkletNode = null;
+        }
+
+        if (audioContext) {
+          await audioContext.close();
+          audioContext = null;
+        }
+
+        // Update UI
+        isRecording = false;
+        const liveBtn = document.getElementById('live-whisper-btn');
+        liveBtn.classList.remove('recording');
+        liveBtn.textContent = '🗣️ Start Live Whisper';
+
+      } catch (error) {
+        console.error('Failed to stop recording:', error);
+      }
+    }
   </script>
 </body>
 </html>
