@@ -116,7 +116,7 @@
       const btn = document.getElementById('generate-soep');
       loader.style.display='flex'; btn.disabled=true;
       try {
-        const res = await fetch('https://ceccf3b52de9.ngrok-free.app/generate-soep', {
+        const res = await fetch('https://cd782cf47f28.ngrok-free.app/generate-soep', {
           method:'POST', headers:{'Content-Type':'application/json'},
           body:JSON.stringify({prompt:txt})
         });
@@ -162,7 +162,7 @@
 
   <!-- Live PCM capture -->
   <script>
-    const SOCKET_URL='https://ceccf3b52de9.ngrok-free.app';
+    const SOCKET_URL='https://cd782cf47f28.ngrok-free.app';
     const socket=io(SOCKET_URL,{transports:['websocket']});
     const startBtn=document.getElementById('whisper-btn'),
           cancelBtn=document.getElementById('cancel-recording-btn'),
