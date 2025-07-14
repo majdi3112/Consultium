@@ -130,29 +130,6 @@
     };
   </script>
 
-  <!-- Waveform Animation -->
-  <script>
-    const NUM_BARS=40; let animId;
-    function initWaveform(stream) {
-      const c=document.getElementById('waveform-canvas'), ctx=c.getContext('2d');
-      const ac=new (window.AudioContext||window.webkitAudioContext)(),
-            an=ac.createAnalyser(); an.fftSize=1024;
-      ac.createMediaStreamSource(stream).connect(an);
-      const data=new Uint8Array(an.frequencyBinCount);
-      (function draw(){
-        animId=requestAnimationFrame(draw);
-        an.getByteTimeDomainData(data);
-        ctx.clearRect(0,0,c.width,c.height);
-        const w=c.width/NUM_BARS;
-        for(let i=0;i<NUM_BARS;i++){
-          const v=data[i*Math.floor(data.length/NUM_BARS)]/255*c.height*0.4;
-          ctx.beginPath(); ctx.moveTo(i*w+w/2,c.height/2-v/2);
-          ctx.lineTo(i*w+w/2,c.height/2+v/2); ctx.stroke();
-        }
-      })();
-    }
-    function cancelWaveform(){ if(animId) cancelAnimationFrame(animId); }
-  </script>
 
   <!-- Live PCM capture -->
   <script>
