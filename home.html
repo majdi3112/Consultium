@@ -140,15 +140,22 @@ function createSection(letter, content) {
 
 
     // Copy helper
-    function copyToClipboard(id) {
-      const field = document.getElementById(id);
-      if(!field) return console.error(#${id} niet gevonden);
-      const text = field.innerText || field.textContent;
-      navigator.clipboard.writeText(text).then(() => {
-        const orig = field.style.backgroundColor; field.style.backgroundColor = '#d1fae5';
-        setTimeout(() => field.style.backgroundColor = orig, 800);
-      }).catch(err => console.error('Fout bij kopiëren:', err));
-    }
+function copyToClipboard(id) {
+  const field = document.getElementById(id);
+  if (!field) {
+    console.error(`#${id} niet gevonden`);
+    return;
+  }
+  const text = field.innerText || field.textContent;
+  navigator.clipboard.writeText(text)
+    .then(() => {
+      const orig = field.style.backgroundColor;
+      field.style.backgroundColor = '#d1fae5';
+      setTimeout(() => field.style.backgroundColor = orig, 800);
+    })
+    .catch(err => console.error('Fout bij kopiëren:', err));
+}
+
   </script>
 
   <!-- 🧠 SOEP generator function -->
