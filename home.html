@@ -103,27 +103,41 @@
 
   <!-- ✨ UTILITIES -->
   <script>
-    // Bullet formatter
-    function formatBullets(text) {
-      const parts = text.split('•').slice(1);
-      let html = '<ul class="list-disc pl-6 mb-4">';
-      parts.forEach(p => { const item = p.trim(); if(item) html += <li class=\"mb-2\">${item}</li>; });
-      html += '</ul>'; return html;
+function formatBullets(text) {
+  const parts = text.split('•').slice(1);
+  let html = '<ul class="list-disc pl-6 mb-4">';
+  parts.forEach(p => {
+    const item = p.trim();
+    if (item) {
+      html += `<li class="mb-2">${item}</li>`;
     }
+  });
+  html += '</ul>';
+  return html;
+}
+
 
     // Build SOEP section
-    function createSection(letter, content) {
-      const tmpl  = document.getElementById('section-template');
-      const clone = tmpl.content.cloneNode(true);
-      clone.querySelector('h3').textContent = letter;
-      const outputDiv = clone.querySelector('.formatted-output');
-      const outputId  = ${letter.toLowerCase()}-output;
-      outputDiv.id    = outputId;
-      const normalized = content.replace(/-\s*/g, '• ');
-      outputDiv.innerHTML = formatBullets(normalized);
-      clone.querySelector('button').setAttribute('onclick', copyToClipboard('${outputId}'));
-      return clone;
-    }
+function createSection(letter, content) {
+  const tmpl   = document.getElementById('section-template');
+  const clone  = tmpl.content.cloneNode(true);
+  clone.querySelector('h3').textContent = letter;
+
+  const outputId  = `${letter.toLowerCase()}-output`;
+  const outputDiv = clone.querySelector('.formatted-output');
+  outputDiv.id    = outputId;
+
+  // vul de inhoud zoals voorheen…
+  const normalized = content.replace(/-\s*/g, '• ');
+  outputDiv.innerHTML = formatBullets(normalized);
+
+  // correcte onclick
+  clone.querySelector('button')
+       .setAttribute('onclick', `copyToClipboard('${outputId}')`);
+
+  return clone;
+}
+
 
     // Copy helper
     function copyToClipboard(id) {
@@ -152,9 +166,11 @@
         const data = await res.json();
         if(data.error) throw new Error(data.error);
         ['S','O','E','P'].forEach(letter => {
-          const box = document.getElementById(${letter.toLowerCase()}-box);
+          const box = document.getElementById(`${letter.toLowerCase()}-box`);
           box.innerHTML = '';
           box.appendChild(createSection(letter, data[letter.toLowerCase()]));
+           });
+
         });
         document.getElementById('verslag-container').classList.remove('hidden');
         document.getElementById('verslag-container').scrollIntoView({ behavior:'smooth', block:'start' });
