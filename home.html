@@ -152,38 +152,51 @@ function createSection(letter, content) {
   </script>
 
   <!-- 🧠 SOEP generator function -->
-  <script>
-    async function generateSOEP() {
-      const promptText = document.getElementById('text-input').value.trim();
-      if(!promptText) { alert('Transcriptie of tekst ontbreekt.'); return; }
-      const loader = document.getElementById('loading-overlay');
-      const btn    = document.getElementById('generate-soep');
-      loader.style.display = 'flex';
-      btn.disabled = true;
-      try {
-        const res  = await fetch('https://6d115451a3f8.ngrok-free.app/generate-soep', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ prompt: promptText })
-        });
-        const data = await res.json();
-        if(data.error) throw new Error(data.error);
-        ['S','O','E','P'].forEach(letter => {
-          const box = document.getElementById(`${letter.toLowerCase()}-box`);
-          box.innerHTML = '';
-          box.appendChild(createSection(letter, data[letter.toLowerCase()]));
-           });
-
-        });
-        document.getElementById('verslag-container').classList.remove('hidden');
-        document.getElementById('verslag-container').scrollIntoView({ behavior:'smooth', block:'start' });
-      } catch(err) {
-        console.error(err);
-        alert('Serverfout bij SOEP-generatie.');
-      } finally {
-        loader.style.display = 'none';
-        btn.disabled = false;
-      }
+<script>
+  async function generateSOEP() {
+    const promptText = document.getElementById('text-input').value.trim();
+    if (!promptText) {
+      alert('Transcriptie of tekst ontbreekt.');
+      return;
     }
-    document.getElementById('generate-soep').addEventListener('click', generateSOEP);
-  </script>
+
+    const loader = document.getElementById('loading-overlay');
+    const btn    = document.getElementById('generate-soep');
+    loader.style.display = 'flex';
+    btn.disabled = true;
+
+    try {
+      const res  = await fetch('https://6d115451a3f8.ngrok-free.app/generate-soep', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: promptText })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      ['S','O','E','P'].forEach(letter => {
+        const box = document.getElementById(`${letter.toLowerCase()}-box`);
+        box.innerHTML = '';
+        box.appendChild(createSection(letter, data[letter.toLowerCase()]));
+      });
+
+      document.getElementById('verslag-container').classList.remove('hidden');
+      document.getElementById('verslag-container')
+              .scrollIntoView({ behavior:'smooth', block:'start' });
+
+    } catch (err) {
+      console.error(err);
+      alert('Serverfout bij SOEP‑generatie.');
+    } finally {
+      loader.style.display = 'none';
+      btn.disabled = false;
+    }
+  }
+
+  document.getElementById('generate-soep')
+          .addEventListener('click', generateSOEP);
+</script>
+
 
   <!-- 📢 Audio recording + waveform animation + SOEP integratie -->
   <script>
