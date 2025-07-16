@@ -3,181 +3,90 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" href="images/icon.png" type="image/png" sizes="168x168">
   <title>Consultium App</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    /* Loading overlay */
-    #loading-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(255,255,255,0.8);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 50;
-    }
-    .spinner {
-      border: 4px solid #3b82f6;
-      border-top-color: transparent;
-      border-radius: 9999px;
-      width: 3rem;
-      height: 3rem;
-      animation: spin 1s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    body { font-family: 'Inter', sans-serif; background: #f8fafc; }
-    .expanding-textarea { min-height: 80px; max-height: 640px; overflow-y: auto; resize: none; padding: 1rem 1rem 4rem; }
-    .formatted-output { background: transparent; border: none; box-shadow: none; padding: 0; }
-    .scrollable-box { max-height: 240px; overflow-y: auto; background: transparent; padding: 0; }
-    .fade-in { opacity: 0; animation: fadeIn 0.5s ease-out forwards; }
-    @keyframes fadeIn { to { opacity: 1; } }
-    .formatted-output ul { display: block; margin: 0 0 0.75rem 1.5rem; padding: 0; }
-    .formatted-output li { display: list-item; margin-bottom: 0.5rem; }
-    .formatted-output ul ul { margin-bottom: 0.5rem; margin-left: 1rem; }
+    #loading-overlay {position: fixed; inset: 0; background: rgba(255,255,255,0.8); display: none; align-items: center; justify-content: center; z-index: 50;}
+    .spinner {border:4px solid #3b82f6; border-top-color:transparent; border-radius:9999px; width:3rem; height:3rem; animation:spin 1s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    body{font-family:'Inter',sans-serif;background:#f8fafc}
+    .expanding-textarea{min-height:80px;max-height:640px;overflow-y:auto;resize:none;padding:1rem 1rem 4rem}
+    .formatted-output{background:transparent;border:none;box-shadow:none;padding:0}
+    .scrollable-box{max-height:240px;overflow-y:auto;background:transparent;padding:0}
+    .fade-in{opacity:0;animation:fadeIn .5s ease-out forwards}
+    @keyframes fadeIn{to{opacity:1}}
+    .formatted-output ul{display:block;margin:0 0 .75rem 1.5rem;padding:0}
+    .formatted-output li{display:list-item;margin-bottom:.5rem}
+    .formatted-output ul ul{margin-bottom:.5rem;margin-left:1rem}
   </style>
 </head>
 <body class="h-screen flex flex-col">
-  <!-- Global loading overlay -->
   <div id="loading-overlay" class="flex"><div class="spinner"></div></div>
-
-  <!-- Header -->
   <header class="flex items-center justify-between px-6 py-4 bg-white shadow">
-    <div class="flex items-center space-x-3">
-      <img src="static/images/logo.png" alt="Mediflow Logo" class="h-8 w-auto object-contain transform scale-[4] origin-left mt-0.5">
-    </div>
-    <div class="relative">
-      <img src="static/images/default.png" alt="Profiel" class="w-10 h-10 rounded-full border border-gray-300 cursor-pointer" onclick="toggleMenu()">
-      <div id="dropdown-menu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg z-50">
-        <a href="/account" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Account Instellingen</a>
-        <a href="index.html" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Uitloggen</a>
-      </div>
-    </div>
-    <script>
-      function toggleMenu() { document.getElementById('dropdown-menu').classList.toggle('hidden'); }
-      window.addEventListener('click', e => { if(!e.target.closest('img') && !e.target.closest('#dropdown-menu')) document.getElementById('dropdown-menu').classList.add('hidden'); });
-    </script>
+    <img src="static/images/logo.png" alt="Logo" class="h-8">
+    <img src="static/images/default.png" alt="Profile" class="w-10 h-10 rounded-full">  
   </header>
-
-  <!-- Recording overlay -->
-  <div id="recording-overlay" class="fixed inset-0 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm hidden z-50">
-    <button id="cancel-recording-btn" class="absolute top-6 right-6 text-3xl text-gray-500 hover:text-gray-700">&times;</button>
-    <button id="soep-recording-btn" class="mt-8 px-10 py-4 bg-blue-600 text-white text-2xl font-bold rounded-full shadow-lg hover:bg-blue-700 transition">SOEP</button>
-  </div>
-
   <main class="flex-1 px-8 py-10 flex flex-col items-center">
-    <!-- Input Box -->
-    <div class="mt-8 bg-white p-6 rounded-3xl shadow-sm border border-gray-200 w-2/3 mx-auto">
-      <textarea id="text-input" placeholder="Hier typen..." class="w-full p-4 text-lg placeholder-gray-400 bg-transparent outline-none expanding-textarea"></textarea>
-      <button id="whisper-btn" class="mt-4 px-4 py-2 bg-blue-100 text-blue-700 rounded-full shadow hover:bg-blue-200 transition inline-flex items-center">🎙️ Start Opname</button>
+    <div class="w-2/3 bg-white p-6 rounded-3xl shadow-sm border border-gray-200">
+      <textarea id="text-input" placeholder="Hier komt transcriptie..." class="w-full expanding-textarea"></textarea>
+      <button id="whisper-btn" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded-full">Start opname</button>
+      <button id="stop-btn" class="mt-4 bg-red-600 text-white px-4 py-2 rounded-full hidden">Stop opname</button>
     </div>
-
-    <!-- SOEP Button -->
-    <div class="mt-4 flex justify-center">
-      <button id="generate-soep" class="px-8 py-3 bg-gray-200 text-gray-700 rounded-full shadow hover:bg-gray-300 font-medium">SOEP</button>
+    <div class="mt-6 w-2/3">
+      <h2 class="text-xl font-semibold">Realtime transcriptie:</h2>
+      <div id="realtime-output" class="bg-gray-50 p-4 rounded-lg h-32 overflow-y-auto"></div>
     </div>
-
-    <!-- SOEP Verslag -->
+    <div class="mt-6">
+      <button id="generate-soep" class="bg-gray-200 text-gray-700 px-8 py-3 rounded-full">Genereer SOEP</button>
+    </div>
     <div id="verslag-container" class="mt-8 w-2/3 space-y-6 hidden">
-      <template id="section-template">
-        <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 fade-in">
-          <h3 class="text-xl font-semibold mb-4">LETTER</h3>
-          <div class="relative">
-            <div class="scrollable-box"><div class="formatted-output text-lg leading-relaxed"></div></div>
-            <button class="absolute bottom-4 right-4 px-2 py-1 bg-gray-100 text-gray-700 rounded-full shadow">📋</button>
-          </div>
-        </div>
-      </template>
-      <div id="s-box"></div>
-      <div id="o-box"></div>
-      <div id="e-box"></div>
-      <div id="p-box"></div>
+      <template id="section-template"><div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 fade-in"><h3 class="text-xl font-semibold mb-4">LETTER</h3><div class="scrollable-box"><div class="formatted-output"></div></div><button class="absolute bottom-4 right-4 px-2 py-1 bg-gray-100 rounded-full">📋</button></div></template>
+      <div id="s-box"></div><div id="o-box"></div><div id="e-box"></div><div id="p-box"></div>
     </div>
   </main>
-
-  <!-- Utilities -->
   <script>
     function formatBullets(text) {
       const parts = text.split('•').slice(1);
       let html = '<ul class="list-disc pl-6 mb-4">';
-      parts.forEach(p => {
-        const item = p.trim();
-        if (item) html += `<li class="mb-2">${item}</li>`;
-      });
-      html += '</ul>';
+      parts.forEach(p=>{const item=p.trim(); if(item) html+=`<li class="mb-2">${item}</li>`}); html+='</ul>';
       return html;
     }
     function createSection(letter, content) {
       const tmpl = document.getElementById('section-template');
       const clone = tmpl.content.cloneNode(true);
       clone.querySelector('h3').textContent = letter;
-      const outputId = `${letter.toLowerCase()}-output`;
-      const outputDiv = clone.querySelector('.formatted-output');
-      outputDiv.id = outputId;
-      outputDiv.innerHTML = formatBullets(content.replace(/-\s*/g,'• '));
-      clone.querySelector('button').setAttribute('onclick', `copyToClipboard('${outputId}')`);
+      const out = clone.querySelector('.formatted-output');
+      out.innerHTML = formatBullets(content.replace(/-\s*/g,'• '));
       return clone;
     }
-    function copyToClipboard(id) {
-      const field = document.getElementById(id);
-      if (!field) return console.error(`#${id} niet gevonden`);
-      navigator.clipboard.writeText(field.innerText);
-    }
-  </script>
 
-  <!-- SOEP Generator -->
-  <script>
+    // realtime via SSE
+    let es;
+    document.getElementById('whisper-btn').onclick = async ()=>{
+      document.getElementById('stop-btn').classList.remove('hidden');
+      es = new EventSource('https://74c87b892d3b.ngrok-free.app/stream-transcribe');
+      const box = document.getElementById('realtime-output'); box.textContent='';
+      es.onmessage = e => { const data=JSON.parse(e.data); box.textContent += data.text + ' ';
+        box.scrollTop = box.scrollHeight;
+        document.getElementById('text-input').value = box.textContent;
+      };
+    };
+    document.getElementById('stop-btn').onclick = ()=>{ es.close(); document.getElementById('stop-btn').classList.add('hidden'); };
+
     async function generateSOEP() {
-      const prompt = document.getElementById('text-input').value.trim();
-      if (!prompt) return alert('Transcriptie of tekst ontbreekt.');
-      const loader = document.getElementById('loading-overlay');
-      loader.style.display = 'flex';
-      try {
-        const res = await fetch('https://74c87b892d3b.ngrok-free.app/generate-soep', {
-          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({prompt})
-        });
+      const prompt = document.getElementById('text-input').value;
+      const loader = document.getElementById('loading-overlay'); loader.style.display='flex';
+      try{
+        const res = await fetch('https://74c87b892d3b.ngrok-free.app/generate-soep',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt})});
         const data = await res.json();
-        ['S','O','E','P'].forEach(letter => {
-          const box = document.getElementById(`${letter.toLowerCase()}-box`);
-          box.innerHTML = '';
-          box.appendChild(createSection(letter, data[letter.toLowerCase()]));
+        ['S','O','E','P'].forEach(letter=>{
+          const box = document.getElementById(`${letter.toLowerCase()}-box`); box.innerHTML=''; box.appendChild(createSection(letter,data[letter.toLowerCase()]));
         });
         document.getElementById('verslag-container').classList.remove('hidden');
-      } catch (e) {
-        console.error(e);
-        alert('Serverfout bij SOEP‑generatie.');
-      } finally {
-        loader.style.display = 'none';
-      }
+      }catch(err){alert('Fout bij SOEP');}
+      finally{loader.style.display='none';}
     }
-    document.getElementById('generate-soep').addEventListener('click', generateSOEP);
-  </script>
-
-  <!-- Audio Recording -->
-  <script>
-    let recorder;
-    const startBtn = document.getElementById('whisper-btn');
-    const cancelBtn = document.getElementById('cancel-recording-btn');
-    const overlay = document.getElementById('recording-overlay');
-    startBtn.onclick = async () => {
-      overlay.classList.remove('hidden');
-      const stream = await navigator.mediaDevices.getUserMedia({audio:true});
-      const chunks = [];
-      recorder = new MediaRecorder(stream);
-      recorder.ondataavailable = e => chunks.push(e.data);
-      recorder.onstop = async () => {
-        overlay.classList.add('hidden');
-        const blob = new Blob(chunks, {type:'audio/webm'});
-        const fd = new FormData(); fd.append('file', blob);
-        const res = await fetch('https://74c87b892d3b.ngrok-free.app/transcribe-audio',{method:'POST',body:fd});
-        const json = await res.json();
-        document.getElementById('text-input').value = json.transcription;
-        generateSOEP();
-      };
-      recorder.start();
-    };
-    cancelBtn.onclick = () => { if(recorder && recorder.state==='recording') recorder.stop(); };
+    document.getElementById('generate-soep').onclick = generateSOEP;
   </script>
 </body>
 </html>
