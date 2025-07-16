@@ -3,88 +3,148 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Consultium App</title>
+  <title>Consultium App</n<title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    #loading-overlay {position: fixed; inset: 0; background: rgba(255,255,255,0.8); display: none; align-items: center; justify-content: center; z-index: 50;}
-    .spinner {border:4px solid #3b82f6; border-top-color:transparent; border-radius:9999px; width:3rem; height:3rem; animation:spin 1s linear infinite;}
-    @keyframes spin{to{transform:rotate(360deg)}}
-    body{font-family:'Inter',sans-serif;background:#f8fafc}
-    .expanding-textarea{min-height:80px;max-height:640px;overflow-y:auto;resize:none;padding:1rem 1rem 4rem}
-    .formatted-output{background:transparent;border:none;box-shadow:none;padding:0}
-    .scrollable-box{max-height:240px;overflow-y:auto;background:transparent;padding:0}
-    .fade-in{opacity:0;animation:fadeIn .5s ease-out forwards}
-    @keyframes fadeIn{to{opacity:1}}
-    .formatted-output ul{display:block;margin:0 0 .75rem 1.5rem;padding:0}
-    .formatted-output li{display:list-item;margin-bottom:.5rem}
-    .formatted-output ul ul{margin-bottom:.5rem;margin-left:1rem}
+    /* Loading overlay */
+    #loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.8); display: none; align-items: center; justify-content: center; z-index: 50; }
+    .spinner { border: 4px solid #3b82f6; border-top-color: transparent; border-radius: 9999px; width: 3rem; height: 3rem; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    body { font-family: 'Inter', sans-serif; background: #f8fafc; }
+    .expanding-textarea { min-height: 80px; max-height: 640px; overflow-y: auto; resize: none; padding: 1rem 1rem 4rem; }
+    .formatted-output { background: transparent; border: none; box-shadow: none; padding: 0; }
+    .scrollable-box { max-height: 240px; overflow-y: auto; background: transparent; padding: 0; }
+    .fade-in { opacity: 0; animation: fadeIn 0.5s ease-out forwards; }
+    @keyframes fadeIn { to { opacity: 1; } }
+    .formatted-output ul { display: block; margin: 0 0 0.75rem 1.5rem; padding: 0; }
+    .formatted-output li { display: list-item; margin-bottom: 0.5rem; }
+    .formatted-output ul ul { margin-bottom: 0.5rem; margin-left: 1rem; }
   </style>
 </head>
 <body class="h-screen flex flex-col">
+  <!-- Loading overlay -->
   <div id="loading-overlay" class="flex"><div class="spinner"></div></div>
+
+  <!-- Header -->
   <header class="flex items-center justify-between px-6 py-4 bg-white shadow">
     <img src="static/images/logo.png" alt="Logo" class="h-8">
-    <img src="static/images/default.png" alt="Profile" class="w-10 h-10 rounded-full">  
+    <img src="static/images/default.png" alt="Profiel" class="w-10 h-10 rounded-full">
   </header>
-  <main class="flex-1 px-8 py-10 flex flex-col items-center">
+
+  <main class="flex-1 px-8 py-10 flex flex-col items-center space-y-6">
+    <!-- Transcriptie Input -->
     <div class="w-2/3 bg-white p-6 rounded-3xl shadow-sm border border-gray-200">
       <textarea id="text-input" placeholder="Hier komt transcriptie..." class="w-full expanding-textarea"></textarea>
-      <button id="whisper-btn" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded-full">Start opname</button>
-      <button id="stop-btn" class="mt-4 bg-red-600 text-white px-4 py-2 rounded-full hidden">Stop opname</button>
+      <div class="mt-4 space-x-2">
+        <button id="whisper-btn" class="bg-blue-600 text-white px-4 py-2 rounded-full">Start opname</button>
+        <button id="stop-btn" class="bg-red-600 text-white px-4 py-2 rounded-full hidden">Stop opname</button>
+      </div>
     </div>
-    <div class="mt-6 w-2/3">
-      <h2 class="text-xl font-semibold">Realtime transcriptie:</h2>
+
+    <!-- Realtime weergave -->
+    <div class="w-2/3">
+      <h2 class="text-xl font-semibold mb-2">Realtime transcriptie</h2>
       <div id="realtime-output" class="bg-gray-50 p-4 rounded-lg h-32 overflow-y-auto"></div>
     </div>
-    <div class="mt-6">
-      <button id="generate-soep" class="bg-gray-200 text-gray-700 px-8 py-3 rounded-full">Genereer SOEP</button>
-    </div>
-    <div id="verslag-container" class="mt-8 w-2/3 space-y-6 hidden">
-      <template id="section-template"><div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 fade-in"><h3 class="text-xl font-semibold mb-4">LETTER</h3><div class="scrollable-box"><div class="formatted-output"></div></div><button class="absolute bottom-4 right-4 px-2 py-1 bg-gray-100 rounded-full">📋</button></div></template>
-      <div id="s-box"></div><div id="o-box"></div><div id="e-box"></div><div id="p-box"></div>
+
+    <!-- SOEP knop -->
+    <button id="generate-soep" class="bg-gray-200 text-gray-700 px-8 py-3 rounded-full">Genereer SOEP</button>
+
+    <!-- SOEP verslagen -->
+    <div id="verslag-container" class="w-2/3 space-y-6 hidden">
+      <template id="section-template">
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 fade-in">
+          <h3 class="text-xl font-semibold mb-4">LETTER</h3>
+          <div class="scrollable-box"><div class="formatted-output text-lg leading-relaxed"></div></div>
+        </div>
+      </template>
+      <div id="s-box"></div>
+      <div id="o-box"></div>
+      <div id="e-box"></div>
+      <div id="p-box"></div>
     </div>
   </main>
+
   <script>
+    // Bullet formatting
     function formatBullets(text) {
       const parts = text.split('•').slice(1);
       let html = '<ul class="list-disc pl-6 mb-4">';
-      parts.forEach(p=>{const item=p.trim(); if(item) html+=`<li class="mb-2">${item}</li>`}); html+='</ul>';
+      parts.forEach(p => { const item = p.trim(); if (item) html += `<li class="mb-2">${item}</li>`; });
+      html += '</ul>';
       return html;
     }
+
     function createSection(letter, content) {
       const tmpl = document.getElementById('section-template');
       const clone = tmpl.content.cloneNode(true);
       clone.querySelector('h3').textContent = letter;
       const out = clone.querySelector('.formatted-output');
-      out.innerHTML = formatBullets(content.replace(/-\s*/g,'• '));
+      out.innerHTML = formatBullets(content.replace(/-\s*/g, '• '));
       return clone;
     }
 
-    // realtime via SSE
-    let es;
-    document.getElementById('whisper-btn').onclick = async ()=>{
-      document.getElementById('stop-btn').classList.remove('hidden');
-      es = new EventSource('https://74c87b892d3b.ngrok-free.app/stream-transcribe');
-      const box = document.getElementById('realtime-output'); box.textContent='';
-      es.onmessage = e => { const data=JSON.parse(e.data); box.textContent += data.text + ' ';
-        box.scrollTop = box.scrollHeight;
-        document.getElementById('text-input').value = box.textContent;
-      };
-    };
-    document.getElementById('stop-btn').onclick = ()=>{ es.close(); document.getElementById('stop-btn').classList.add('hidden'); };
+    // SSE real-time transcriptie
+    let recorder, mediaStream;
+    let chunkTimer;
 
+    document.getElementById('whisper-btn').onclick = async () => {
+      // Start media recorder
+      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recorder = new MediaRecorder(mediaStream, { mimeType: 'audio/webm' });
+      let buffer = [];
+      recorder.ondataavailable = e => buffer.push(e.data);
+      recorder.start();
+      document.getElementById('stop-btn').classList.remove('hidden');
+
+      // Stuur elke 2s chunk met overlap
+      chunkTimer = setInterval(async () => {
+        if (buffer.length === 0) return;
+        // Combineer buffer voor overlap: gebruik alle chunks
+        const blob = new Blob(buffer, { type: 'audio/webm' });
+        buffer = []; // reset
+
+        // SSE verbinding
+        const evt = new EventSource('https://74c87b892d3b.ngrok-free.app/stream-transcribe');
+        evt.onmessage = e => {
+          const { text } = JSON.parse(e.data);
+          const outBox = document.getElementById('realtime-output');
+          outBox.textContent += text + ' ';
+          outBox.scrollTop = outBox.scrollHeight;
+          document.getElementById('text-input').value = outBox.textContent;
+        };
+
+        // Upload chunk
+        const fd = new FormData(); fd.append('file', blob, 'chunk.webm');
+        await fetch('https://74c87b892d3b.ngrok-free.app/stream-transcribe', { method: 'POST', body: fd });
+      }, 2000);
+    };
+
+    document.getElementById('stop-btn').onclick = () => {
+      clearInterval(chunkTimer);
+      recorder.stop();
+      mediaStream.getTracks().forEach(t => t.stop());
+      document.getElementById('stop-btn').classList.add('hidden');
+    };
+
+    // SOEP generatie
     async function generateSOEP() {
       const prompt = document.getElementById('text-input').value;
-      const loader = document.getElementById('loading-overlay'); loader.style.display='flex';
-      try{
-        const res = await fetch('https://74c87b892d3b.ngrok-free.app/generate-soep',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt})});
+      document.getElementById('loading-overlay').style.display = 'flex';
+      try {
+        const res = await fetch('https://74c87b892d3b.ngrok-free.app/generate-soep', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ prompt }) });
         const data = await res.json();
-        ['S','O','E','P'].forEach(letter=>{
-          const box = document.getElementById(`${letter.toLowerCase()}-box`); box.innerHTML=''; box.appendChild(createSection(letter,data[letter.toLowerCase()]));
+        ['S','O','E','P'].forEach(letter => {
+          const box = document.getElementById(`${letter.toLowerCase()}-box`);
+          box.innerHTML = '';
+          box.appendChild(createSection(letter, data[letter.toLowerCase()]));
         });
         document.getElementById('verslag-container').classList.remove('hidden');
-      }catch(err){alert('Fout bij SOEP');}
-      finally{loader.style.display='none';}
+      } catch (err) {
+        alert('Fout bij SOEP-generatie');
+      } finally {
+        document.getElementById('loading-overlay').style.display = 'none';
+      }
     }
     document.getElementById('generate-soep').onclick = generateSOEP;
   </script>
