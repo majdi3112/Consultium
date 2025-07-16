@@ -128,7 +128,7 @@ function createSection(letter, content) {
   outputDiv.id    = outputId;
 
   // vul de inhoud zoals voorheen…
-  const normalized = content.replace(/-\s*/g, '• ');
+  const normalized = content.replace(/- \s*/g, '• ');
   outputDiv.innerHTML = formatBullets(normalized);
 
   // correcte onclick
