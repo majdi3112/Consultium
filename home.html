@@ -33,7 +33,7 @@
     }
     
     @keyframes spin { to { transform: rotate(360deg); } }
-    
+
     /* Professional gradient backgrounds */
     .gradient-bg {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -66,6 +66,70 @@
     .feature-card:hover {
       transform: translateY(-2px);
       box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Coming Soon cards */
+    .coming-soon-card {
+      background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      border: 2px dashed #cbd5e1;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .coming-soon-card:hover {
+      transform: translateY(-2px);
+      border-color: #94a3b8;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .coming-soon-badge {
+      position: absolute;
+      top: 10px;
+      right: -25px;
+      background: linear-gradient(45deg, #3b82f6, #06b6d4);
+      color: white;
+      padding: 6px 35px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      transform: rotate(35deg);
+      box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+      letter-spacing: 0.5px;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+    
+    .coming-soon-content {
+      filter: grayscale(0.3);
+      opacity: 0.8;
+    }
+    
+    .pulse-glow {
+      animation: pulse-glow 2s ease-in-out infinite alternate;
+    }
+    
+    @keyframes pulse-glow {
+      from {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      }
+      to {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 0 20px rgba(59, 130, 246, 0.3);
+      }
+    }
+    
+    .lamp-pulse {
+      animation: lamp-pulse 1.5s ease-in-out infinite alternate;
+    }
+    
+    @keyframes lamp-pulse {
+      from {
+        box-shadow: 0 0 5px rgba(251, 191, 36, 0.5);
+      }
+      to {
+        box-shadow: 0 0 15px rgba(251, 191, 36, 0.8);
+      }
     }
     
     /* Chat styles */
@@ -192,9 +256,9 @@
   <header class="bg-white shadow-sm border-b border-gray-200">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between items-center h-16">
-        <div class="flex items-center space-x-3">
+    <div class="flex items-center space-x-3">
           <img src="static/images/logo.png" alt="Consultium AI" class="h-32 w-auto">
-        </div>
+    </div>
         
                  <!-- Navigation -->
          <nav class="hidden md:flex space-x-8">
@@ -205,7 +269,7 @@
          </nav>
         
         <!-- Profile -->
-        <div class="relative">
+    <div class="relative">
           <button onclick="toggleMenu()" class="flex items-center space-x-2 text-gray-700 hover:text-gray-900">
             <img src="static/images/default.png" alt="Profiel" class="w-10 h-10 rounded-full border border-gray-300 cursor-pointer">
           </button>
@@ -250,15 +314,12 @@
              <button onclick="switchTab('soep')" class="px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-50 transition-colors">
                Start SOEP Verslag
              </button>
-             <button onclick="switchTab('tolk')" class="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all duration-300">
-               Start Live Tolk
-             </button>
            </div>
         </div>
       </div>
 
              <!-- Feature Cards -->
-       <div class="grid md:grid-cols-3 gap-6 mb-8">
+       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
          <div class="feature-card hover-lift">
            <div class="flex items-center mb-4">
              <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
@@ -309,6 +370,61 @@
            </div>
            <p class="text-gray-600 mb-4">Real-time vertaling tussen dokter en patiënt tijdens consultaties.</p>
            <button onclick="switchTab('tolk')" class="text-orange-600 font-medium hover:text-orange-700">Start vertaling →</button>
+         </div>
+
+         <!-- Coming Soon Cards -->
+         <div class="coming-soon-card pulse-glow" style="animation-delay: 0.5s;">
+           <div class="coming-soon-badge">BINNENKORT</div>
+           <div class="coming-soon-content">
+             <div class="flex items-center mb-4">
+               <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mr-4 relative">
+                 <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 14.5M14.25 3.104c.251.023.501.05.75.082M19.8 14.5l-2.6 2.6a2.25 2.25 0 01-3.182 0l-2.6-2.6M19.8 14.5V16a2.25 2.25 0 01-2.25 2.25h-8.1A2.25 2.25 0 017.2 16v-1.5m12.6 0a2.25 2.25 0 012.25 2.25V19a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 19v-2.75"></path>
+                 </svg>
+                 <!-- Lamp Alert Icon -->
+                 <div class="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center lamp-pulse">
+                   <svg class="w-2.5 h-2.5 text-yellow-800" fill="currentColor" viewBox="0 0 20 20">
+                     <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
+                   </svg>
+                 </div>
+               </div>
+               <h3 class="text-xl font-semibold text-gray-700">AI Diagnostiek</h3>
+             </div>
+             <p class="text-gray-500 mb-4">Intelligente ondersteuning bij het stellen van diagnoses met medische AI.</p>
+             <div class="flex items-center text-gray-400 font-medium cursor-not-allowed">
+               <svg class="w-4 h-4 mr-2 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+               </svg>
+               Wordt ontwikkeld...
+             </div>
+           </div>
+         </div>
+
+         <div class="coming-soon-card pulse-glow" style="animation-delay: 1s;">
+           <div class="coming-soon-badge">BINNENKORT</div>
+           <div class="coming-soon-content">
+             <div class="flex items-center mb-4">
+               <div class="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mr-4 relative">
+                 <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"></path>
+                 </svg>
+                 <!-- Lamp Alert Icon -->
+                 <div class="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center lamp-pulse">
+                   <svg class="w-2.5 h-2.5 text-yellow-800" fill="currentColor" viewBox="0 0 20 20">
+                     <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
+                   </svg>
+                 </div>
+               </div>
+               <h3 class="text-xl font-semibold text-gray-700">Smart Recepten</h3>
+             </div>
+             <p class="text-gray-500 mb-4">Automatische receptgeneratie met medicatie-interactie controle.</p>
+             <div class="flex items-center text-gray-400 font-medium cursor-not-allowed">
+               <svg class="w-4 h-4 mr-2 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+               </svg>
+               Wordt ontwikkeld...
+             </div>
+           </div>
          </div>
        </div>
 
@@ -543,8 +659,8 @@
            </div>
          </div>
        </div>
-     </div>
-   </main>
+    </div>
+  </main>
 
   <!-- Scripts -->
   <script>
@@ -691,21 +807,21 @@
     
 
     // SOEP Generation functionality
-    async function generateSOEP() {
-      const promptText = document.getElementById('text-input').value.trim();
-      if (!promptText) {
+  async function generateSOEP() {
+    const promptText = document.getElementById('text-input').value.trim();
+    if (!promptText) {
         alert('Voer eerst tekst in of maak een opname.');
-        return;
-      }
+      return;
+    }
 
       showLoading(true);
-      
-      try {
+
+    try {
         const response = await fetch('https://a2b86a9fc909.ngrok-free.app/generate-soep', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: promptText })
-        });
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: promptText })
+      });
         
         const data = await response.json();
         
@@ -720,7 +836,7 @@
         });
         
         // Show results and switch to SOEP tab
-        document.getElementById('verslag-container').classList.remove('hidden');
+      document.getElementById('verslag-container').classList.remove('hidden');
         
         // Smooth scroll to results
         setTimeout(() => {
@@ -733,7 +849,7 @@
       } catch (error) {
         console.error('Error generating SOEP:', error);
         alert('Er is een fout opgetreden bij het genereren van het SOEP-verslag. Probeer het opnieuw.');
-      } finally {
+    } finally {
         showLoading(false);
       }
     }
@@ -777,8 +893,8 @@
 
     
 
-         async function startRecording() {
-       try {
+    async function startRecording() {
+      try {
          // Reset cancellation flag at start
          recordingCancelled = false;
          
@@ -867,7 +983,7 @@
        
        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
        const formData = new FormData();
-       formData.append('file', audioBlob, 'recording.webm');
+      formData.append('file', audioBlob, 'recording.webm');
        
        showLoading(true);
        
@@ -884,15 +1000,15 @@
          }
          
          // Set transcribed text
-         document.getElementById('text-input').value = result.transcription;
+        document.getElementById('text-input').value = result.transcription;
          
          // Auto-generate SOEP
-         await generateSOEP();
+        await generateSOEP();
          
        } catch (error) {
          console.error('Transcription error:', error);
          alert('Fout bij transcriptie. Probeer het opnieuw.');
-       } finally {
+      } finally {
          showLoading(false);
          
          if (audioStream) {
@@ -1254,7 +1370,7 @@
            e.preventDefault();
          });
        }
-     });
-   </script>
+    });
+  </script>
 </body>
 </html>
