@@ -74,26 +74,45 @@
       overflow-y: auto;
     }
     
-    .chat-message {
-      margin-bottom: 1rem;
-      padding: 0.75rem 1rem;
-      border-radius: 1rem;
-      max-width: 80%;
-    }
-    
-    .user-message {
-      background: #3b82f6;
-      color: white;
-      margin-left: auto;
-      border-bottom-right-radius: 0.25rem;
-    }
-    
-    .ai-message {
-      background: #f3f4f6;
-      color: #374151;
-      margin-right: auto;
-      border-bottom-left-radius: 0.25rem;
-    }
+         .chat-message {
+       margin-bottom: 1rem;
+       padding: 0.75rem 1rem;
+       border-radius: 1rem;
+       max-width: 80%;
+       word-wrap: break-word;
+     }
+     
+     .user-message {
+       background: #3b82f6;
+       color: white;
+       margin-left: auto;
+       border-bottom-right-radius: 0.25rem;
+     }
+     
+     .ai-message {
+       background: #f3f4f6;
+       color: #374151;
+       margin-right: auto;
+       border-bottom-left-radius: 0.25rem;
+     }
+     
+     .ai-message a {
+       color: #2563eb;
+       text-decoration: underline;
+     }
+     
+     .ai-message a:hover {
+       color: #1d4ed8;
+     }
+     
+     .ai-message ul {
+       margin: 0.5rem 0;
+       padding-left: 1rem;
+     }
+     
+     .ai-message li {
+       margin-bottom: 0.25rem;
+     }
     
     /* SOEP sections */
     .soep-section {
@@ -182,7 +201,6 @@
            <button class="nav-tab active" data-tab="dashboard">Dashboard</button>
            <button class="nav-tab" data-tab="soep">SOEP Verslag</button>
            <button class="nav-tab" data-tab="chat">AI Chat</button>
-           <button class="nav-tab" data-tab="opname">Live Opname</button>
            <button class="nav-tab" data-tab="tolk">Live Tolk</button>
          </nav>
         
@@ -228,16 +246,19 @@
         <div class="max-w-3xl">
           <h1 class="text-4xl font-bold mb-4">Welkom bij Consultium AI</h1>
           <p class="text-xl mb-6 opacity-90">Revolutioneer uw medische documentatie met AI-gestuurde SOEP-verslagen en real-time transcriptie.</p>
-                     <div class="flex flex-wrap gap-4">
+                                <div class="flex flex-wrap gap-4">
              <button onclick="switchTab('soep')" class="px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-50 transition-colors">
-              Begin Opname
+               Start SOEP Verslag
+             </button>
+             <button onclick="switchTab('tolk')" class="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all duration-300">
+               Start Live Tolk
              </button>
            </div>
         </div>
       </div>
 
              <!-- Feature Cards -->
-       <div class="grid md:grid-cols-4 gap-6 mb-8">
+       <div class="grid md:grid-cols-3 gap-6 mb-8">
          <div class="feature-card hover-lift">
            <div class="flex items-center mb-4">
              <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
@@ -261,7 +282,7 @@
              <h3 class="text-xl font-semibold text-gray-900">Live Opname</h3>
            </div>
            <p class="text-gray-600 mb-4">Real-time transcriptie met 99% nauwkeurigheid tijdens het consult.</p>
-           <button onclick="switchTab('opname')" class="text-green-600 font-medium hover:text-green-700">Start opname →</button>
+           <button onclick="switchTab('soep')" class="text-green-600 font-medium hover:text-green-700">Start opname →</button>
          </div>
 
          <div class="feature-card hover-lift">
@@ -418,87 +439,7 @@
       </div>
     </div>
 
-    <!-- Live Opname Tab -->
-    <div id="opname-tab" class="tab-content hidden">
-      <div class="mb-8">
-        <h2 class="text-3xl font-bold text-gray-900 mb-2">Live Opname & Transcriptie</h2>
-        <p class="text-gray-600">Real-time spraak-naar-tekst met directe SOEP-generatie voor efficiënte documentatie</p>
-      </div>
-
-      <!-- Recording Status -->
-      <div class="bg-white rounded-2xl p-8 shadow-sm border border-gray-200 mb-8">
-        <div class="text-center">
-          <div id="recording-status" class="mb-6">
-            <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
-              </svg>
-            </div>
-            <h3 class="text-xl font-semibold text-gray-900 mb-2">Klaar voor opname</h3>
-            <p class="text-gray-600">Klik op de knop hieronder om te beginnen met live transcriptie</p>
-          </div>
-          
-          <button id="start-recording-btn" onclick="startLiveRecording()" class="px-8 py-4 blue-gradient text-white text-lg font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-            🎤 Start Live Opname
-          </button>
-        </div>
-      </div>
-
-      <!-- Live Transcription -->
-      <div id="live-transcription" class="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 hidden">
-        <h3 class="text-xl font-semibold text-gray-900 mb-4">Live Transcriptie</h3>
-        <div id="transcription-text" class="min-h-32 p-4 bg-gray-50 rounded-lg border border-gray-200 text-gray-700">
-          Transcriptie verschijnt hier tijdens de opname...
-        </div>
-      </div>
-
-             <!-- Features List -->
-       <div class="grid md:grid-cols-2 gap-6 mt-8">
-         <div class="space-y-4">
-           <h3 class="text-xl font-semibold text-gray-900">Functies</h3>
-           <div class="space-y-2">
-             <div class="flex items-center space-x-3">
-               <div class="w-1.5 h-1.5 bg-black rounded-full"></div>
-               <span class="text-black text-sm">Real-time transcriptie met &lt;1 seconde vertraging</span>
-             </div>
-             <div class="flex items-center space-x-3">
-               <div class="w-1.5 h-1.5 bg-black rounded-full"></div>
-               <span class="text-black text-sm">99% nauwkeurigheid in Nederlandse medische terminologie</span>
-             </div>
-             <div class="flex items-center space-x-3">
-               <div class="w-1.5 h-1.5 bg-black rounded-full"></div>
-               <span class="text-black text-sm">Automatische spreker herkenning</span>
-             </div>
-             <div class="flex items-center space-x-3">
-               <div class="w-1.5 h-1.5 bg-black rounded-full"></div>
-               <span class="text-black text-sm">Directe export naar SOEP-format</span>
-             </div>
-           </div>
-         </div>
-         
-         <div class="space-y-4">
-           <h3 class="text-xl font-semibold text-gray-900">Voordelen</h3>
-           <div class="space-y-2">
-             <div class="flex items-center space-x-3">
-               <div class="w-1.5 h-1.5 bg-black rounded-full"></div>
-               <span class="text-black text-sm">Meer tijd voor patiëntenzorg</span>
-             </div>
-             <div class="flex items-center space-x-3">
-               <div class="w-1.5 h-1.5 bg-black rounded-full"></div>
-               <span class="text-black text-sm">Verminderde administratieve last</span>
-             </div>
-             <div class="flex items-center space-x-3">
-               <div class="w-1.5 h-1.5 bg-black rounded-full"></div>
-               <span class="text-black text-sm">Verbeterde documentatiekwaliteit</span>
-             </div>
-             <div class="flex items-center space-x-3">
-               <div class="w-1.5 h-1.5 bg-black rounded-full"></div>
-               <span class="text-black text-sm">GDPR-compliant en veilig</span>
-             </div>
-           </div>
-         </div>
-       </div>
-     </div>
+    
 
      <!-- Live Tolk Tab -->
      <div id="tolk-tab" class="tab-content hidden">
@@ -671,7 +612,7 @@
        document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
        
        try {
-         const response = await fetch('https://882e9d82642a.ngrok-free.app/chat-assistant', {
+         const response = await fetch('https://967dd99c32fe.ngrok-free.app/chat-assistant', {
            method: 'POST',
            headers: { 'Content-Type': 'application/json' },
            body: JSON.stringify({ message: message })
@@ -697,15 +638,55 @@
        }
      }
 
-    function addChatMessage(message, sender) {
-      const messagesContainer = document.getElementById('chat-messages');
-      const messageDiv = document.createElement('div');
-      messageDiv.className = `chat-message ${sender}-message`;
-      messageDiv.innerHTML = `<p>${message}</p>`;
-      
-      messagesContainer.appendChild(messageDiv);
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    }
+         function addChatMessage(message, sender) {
+       const messagesContainer = document.getElementById('chat-messages');
+       const messageDiv = document.createElement('div');
+       messageDiv.className = `chat-message ${sender}-message`;
+       
+       // Format the message with better styling
+       let formattedMessage = formatChatMessage(message);
+       messageDiv.innerHTML = formattedMessage;
+       
+       messagesContainer.appendChild(messageDiv);
+       messagesContainer.scrollTop = messagesContainer.scrollHeight;
+     }
+
+     function formatChatMessage(message) {
+       // Convert markdown-like formatting to HTML
+       let formatted = message
+         // Bold text: **text** or __text__
+         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+         .replace(/__(.*?)__/g, '<strong>$1</strong>')
+         
+         // Italic text: *text* or _text_
+         .replace(/\*(.*?)\*/g, '<em>$1</em>')
+         .replace(/_(.*?)_/g, '<em>$1</em>')
+         
+         // Line breaks
+         .replace(/\n/g, '<br>')
+         
+         // Links: detect URLs and make them clickable
+         .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-blue-600 hover:text-blue-800 underline">$1</a>')
+         .replace(/\(([^)]+\.nl[^)]*)\)/g, '(<a href="http://$1" target="_blank" class="text-blue-600 hover:text-blue-800 underline">$1</a>)')
+         
+         // Bullet points: - item becomes bullet
+         .replace(/^[\s]*-\s+(.+)/gm, '<li class="ml-4">$1</li>')
+         
+         // Numbered lists: 1. item becomes numbered
+         .replace(/^[\s]*\d+\.\s+(.+)/gm, '<li class="ml-4">$1</li>');
+       
+       // Wrap consecutive list items in ul tags
+       formatted = formatted.replace(/(<li[^>]*>.*?<\/li>)(\s*<li[^>]*>.*?<\/li>)*/g, function(match) {
+         return '<ul class="list-disc ml-6 space-y-1">' + match + '</ul>';
+       });
+       
+       // Wrap in paragraph if no other block elements
+       if (!formatted.includes('<ul>') && !formatted.includes('<ol>') && !formatted.includes('<div>')) {
+         formatted = '<p class="leading-relaxed">' + formatted + '</p>';
+       }
+       
+       return formatted;
+     }
 
     
 
@@ -720,7 +701,7 @@
       showLoading(true);
       
       try {
-        const response = await fetch('https://882e9d82642a.ngrok-free.app/generate-soep', {
+        const response = await fetch('https://967dd99c32fe.ngrok-free.app/generate-soep', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ prompt: promptText })
@@ -794,45 +775,43 @@
     let analyser = null;
     let animationId = null;
 
-    function startLiveRecording() {
-      switchTab('soep');
-      setTimeout(() => {
-        document.getElementById('whisper-btn').click();
-      }, 500);
-    }
+    
 
-    async function startRecording() {
-      try {
-        audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        audioChunks = [];
-        
-        const options = MediaRecorder.isTypeSupported('audio/webm') 
-          ? { mimeType: 'audio/webm' } 
-          : { mimeType: 'audio/mp4' };
-          
-        mediaRecorder = new MediaRecorder(audioStream, options);
-        
-        mediaRecorder.ondataavailable = event => {
-          if (event.data.size > 0) {
-            audioChunks.push(event.data);
-          }
-        };
-        
-        mediaRecorder.onstop = handleRecordingStop;
-        mediaRecorder.start();
-        
-        // Show recording overlay
-        document.getElementById('recording-overlay').classList.remove('hidden');
-        document.getElementById('whisper-btn').disabled = true;
-        
-        // Start waveform animation
-        initWaveform();
-        
-      } catch (error) {
-        console.error('Recording error:', error);
-        alert('Kon microfoon niet starten. Controleer uw browserinstellingen.');
-      }
-    }
+         async function startRecording() {
+       try {
+         // Reset cancellation flag at start
+         recordingCancelled = false;
+         
+         audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+         audioChunks = [];
+         
+         const options = MediaRecorder.isTypeSupported('audio/webm') 
+           ? { mimeType: 'audio/webm' } 
+           : { mimeType: 'audio/mp4' };
+           
+         mediaRecorder = new MediaRecorder(audioStream, options);
+         
+         mediaRecorder.ondataavailable = event => {
+           if (event.data.size > 0 && !recordingCancelled) {
+             audioChunks.push(event.data);
+           }
+         };
+         
+         mediaRecorder.onstop = handleRecordingStop;
+         mediaRecorder.start();
+         
+         // Show recording overlay
+         document.getElementById('recording-overlay').classList.remove('hidden');
+         document.getElementById('whisper-btn').disabled = true;
+         
+         // Start waveform animation
+         initWaveform();
+         
+       } catch (error) {
+         console.error('Recording error:', error);
+         alert('Kon microfoon niet starten. Controleer uw browserinstellingen.');
+       }
+     }
 
     function stopRecording() {
       if (mediaRecorder && mediaRecorder.state === 'recording') {
@@ -845,60 +824,85 @@
       stopWaveform();
     }
 
-    function cancelRecording() {
-      if (mediaRecorder && mediaRecorder.state === 'recording') {
-        mediaRecorder.stop();
-        audioChunks = []; // Clear chunks to prevent processing
-      }
-      
-      document.getElementById('recording-overlay').classList.add('hidden');
-      document.getElementById('whisper-btn').disabled = false;
-      
-      stopWaveform();
-      
-      if (audioStream) {
-        audioStream.getTracks().forEach(track => track.stop());
-      }
-    }
+         let recordingCancelled = false;
 
-    async function handleRecordingStop() {
-      if (audioChunks.length === 0) return; // Cancelled recording
-      
-      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-      const formData = new FormData();
-      formData.append('file', audioBlob, 'recording.webm');
-      
-      showLoading(true);
-      
-      try {
-        const response = await fetch('https://882e9d82642a.ngrok-free.app/transcribe-audio', {
-          method: 'POST',
-          body: formData
-        });
-        
-        const result = await response.json();
-        
-        if (result.error) {
-          throw new Error(result.error);
-        }
-        
-        // Set transcribed text
-        document.getElementById('text-input').value = result.transcription;
-        
-        // Auto-generate SOEP
-        await generateSOEP();
-        
-      } catch (error) {
-        console.error('Transcription error:', error);
-        alert('Fout bij transcriptie. Probeer het opnieuw.');
-      } finally {
-        showLoading(false);
-        
-        if (audioStream) {
-          audioStream.getTracks().forEach(track => track.stop());
-        }
-      }
-    }
+     function cancelRecording() {
+       recordingCancelled = true; // Set flag to prevent processing
+       
+       if (mediaRecorder && mediaRecorder.state === 'recording') {
+         mediaRecorder.stop();
+       }
+       
+       // Clear audio chunks to prevent processing
+       audioChunks = [];
+       
+       document.getElementById('recording-overlay').classList.add('hidden');
+       document.getElementById('whisper-btn').disabled = false;
+       
+       stopWaveform();
+       
+       if (audioStream) {
+         audioStream.getTracks().forEach(track => track.stop());
+       }
+       
+       // Reset loading overlay if it's showing
+       const loader = document.getElementById('loading-overlay');
+       loader.style.display = 'none';
+       
+       console.log('Recording cancelled by user');
+     }
+
+         async function handleRecordingStop() {
+       // Check if recording was cancelled
+       if (recordingCancelled) {
+         console.log('Recording was cancelled, skipping processing');
+         recordingCancelled = false; // Reset flag
+         return;
+       }
+       
+       if (audioChunks.length === 0) {
+         console.log('No audio chunks available, skipping processing');
+         return;
+       }
+       
+       const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+       const formData = new FormData();
+       formData.append('file', audioBlob, 'recording.webm');
+       
+       showLoading(true);
+       
+       try {
+         const response = await fetch('https://967dd99c32fe.ngrok-free.app/transcribe-audio', {
+           method: 'POST',
+           body: formData
+         });
+         
+         const result = await response.json();
+         
+         if (result.error) {
+           throw new Error(result.error);
+         }
+         
+         // Set transcribed text
+         document.getElementById('text-input').value = result.transcription;
+         
+         // Auto-generate SOEP
+         await generateSOEP();
+         
+       } catch (error) {
+         console.error('Transcription error:', error);
+         alert('Fout bij transcriptie. Probeer het opnieuw.');
+       } finally {
+         showLoading(false);
+         
+         if (audioStream) {
+           audioStream.getTracks().forEach(track => track.stop());
+         }
+         
+         // Reset flag for next recording
+         recordingCancelled = false;
+       }
+     }
 
     // Waveform visualization
     function initWaveform() {
@@ -1049,7 +1053,7 @@
          const language2 = document.getElementById('language-2').value;
          
          // Send to AI for intelligent language detection and translation
-         const response = await fetch('https://882e9d82642a.ngrok-free.app/intelligent-translate', {
+         const response = await fetch('https://967dd99c32fe.ngrok-free.app/intelligent-translate', {
            method: 'POST',
            headers: {
              'Content-Type': 'application/json',
