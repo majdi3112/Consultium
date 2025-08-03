@@ -1,30 +1,32 @@
+# 📌 1. Whisper API in Google Colab (met ngrok)
+!pip install -q gradio flask flask-cors pyngrok transformers torch sentencepiece
+!apt-get update && apt-get install -y ffmpeg
+!pip install openai flask flask-cors python-dotenv pyngrok
+!pip install flask-session
+!pip install bcrypt
+
 from flask import Flask, render_template, request, redirect, session, url_for ,jsonify
 from flask_cors import CORS
 import openai
 import os
 import re
+from getpass import getpass
 from dotenv import load_dotenv
 import subprocess
 from flask_session import Session
 import sqlite3
+import torch
 import bcrypt
 from werkzeug.utils import secure_filename
+from transformers import pipeline
 from pyngrok import ngrok
-
 from flask import send_from_directory
 
 app = Flask(__name__)
 # Temporarily allow any origin:
 CORS(app, supports_credentials=True)
 
-
-os.environ["OPENAI_API_KEY"] = "api key
-
-openai.api_type = "azure"
-openai.api_base = "https://majdi-m9o9rl7t-eastus2.cognitiveservices.azure.com"
-openai.api_version = "2025-03-01-preview"
-openai.api_key = api key
-
+os.environ["OPENAI_API_KEY"] = "xxx"
 
 app.secret_key = 'geheime-sleutel'
 app.config['SESSION_TYPE'] = 'filesystem'
@@ -177,8 +179,6 @@ def api_login():
 def index_view():
     return jsonify({"status": "frontend hosted separately"}), 200
 
-
-
 @app.route('/home')
 def home():
     if 'user_id' not in session:
@@ -201,6 +201,14 @@ else:
 # 🔹 Maak een OpenAI-client aan
 client = openai.OpenAI(api_key=api_key)
 
+whisper_model = pipeline(
+    "automatic-speech-recognition",
+    model="openai/whisper-large-v3-turbo",
+    torch_dtype=torch.float16,
+    device="cuda" if torch.cuda.is_available() else "cpu",
+    generate_kwargs={"language": "nl", "task": "transcribe"}
+)
+
 def extract_section(text, section):
     """
     Zoek een sectie (S, O, E of P) in de GPT-output en pak alle regels
@@ -218,27 +226,31 @@ def extract_section(text, section):
 
     return "⚠️ Sectie niet gevonden in de GPT-output"
 
+def transcribe_audio(path):
+    if not os.path.exists(path):
+        return {"error": "Audiobestand niet gevonden!"}
 
-def transcribe_audio(audio_path):
-    if not os.path.exists(audio_path):
-        return {"error": "❌ Audiobestand niet gevonden!"}
+    base, ext = os.path.splitext(path)
+    ext = ext.lower().lstrip('.')
+    # 🛠️ Converteer WebM naar WAV voor betere compatibiliteit
+    if ext == 'webm':
+        wav = f"{base}.wav"
+        subprocess.run(
+            ['ffmpeg', '-y', '-i', path, wav],
+            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
+        audio_in = wav
+    else:
+        audio_in = path
 
-    print(f"🎧 Audio wordt getranscribeerd via Azure Whisper: {audio_path}")
+    # ① Whisper ASR
+    whisper_result = whisper_model(audio_in)
+    raw_transcription = whisper_result.get("text", "")
+    print("📝 Ruwe transcriptie:", raw_transcription)
 
-    try:
-        with open(audio_path, "rb") as f:
-           response = client.audio.transcriptions.create(
-     model="gpt-4o-transcribe",
-    file=f,
-    language="nl"
-)
-
-        raw_transcription = response.text
-        print("📝 Ruwe transcriptie van Azure Whisper:", raw_transcription)
-
-        # 🎯 Laat GPT-4o de transcriptie verbeteren met interpunctie en medische correcties
-        system_message = """
-       Je bent een geavanceerde medische AI-assistent die transcripties van huisartsconsulten **corrigeert en optimaliseert op basis van context en realisme**.
+    # ② GPT-3.5 polijsting in het Nederlands
+    system_message = """
+ Je bent een geavanceerde medische AI-assistent die transcripties van huisartsconsulten **corrigeert en optimaliseert op basis van context en realisme**.
 
     ✅ **Wat moet je doen?**
     - **Corrigeer verkeerd herkende woorden op basis van de context.**
@@ -272,25 +284,21 @@ def transcribe_audio(audio_path):
     "Dokter: Waar heeft u pijn? Patiënt: Ja, het doet pijn hier en eh, ja, ook een beetje in mijn nek, maar vooral hier."
 
     **Verbeter de volgende transcriptie op deze manier, zonder inkorting of wijziging van de inhoud:**
-    """
-
-        response = client.chat.completions.create(
+"""
+    try:
+        result = client.chat.completions.create(
             model="gpt-4o",
-            max_tokens=5000,
+            max_tokens=1000,
             messages=[
-                {"role": "system", "content": system_message},
-                {"role": "user", "content": raw_transcription}
+                {"role": "system",  "content": system_message},
+                {"role": "user",    "content": raw_transcription}
             ]
         )
-
-        improved_transcription = response.choices[0].message.content.strip()
-        print("✅ Verbeterde transcriptie:", improved_transcription)
-
-        return {"transcription": improved_transcription}
+        polished = result.choices[0].message.content.strip()
+        return {"transcription": polished}
 
     except Exception as e:
-        print(f"❌ Azure Whisper fout: {str(e)}")
-        return {"error": f"Azure Whisper fout: {str(e)}"}
+        return {"error": f"GPT-fout: {e}"}
 
 
 def chat_with_gpt(prompt):
@@ -373,7 +381,6 @@ def transcribe_audio_endpoint():
         print(f"❌ Fout bij transcriptie: {str(e)}")
         return jsonify({"error": f"Serverfout: {str(e)}"}), 500
 
-
 @app.route("/chat-assistant", methods=["POST", "OPTIONS"])
 def chat_assistant():
     if request.method == "OPTIONS":
@@ -397,7 +404,7 @@ def chat_assistant():
         """
 
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4.1-mini",
             max_tokens=500,
             messages=[
                 {"role": "system", "content": preprompt},
@@ -411,7 +418,6 @@ def chat_assistant():
         print(f"❌ Chat-assistent fout: {str(e)}")
         return jsonify({"error": f"Serverfout: {str(e)}"}), 500
 
-
 if __name__ == "__main__":
     print("🚀 Flask server wordt gestart...")
 
@@ -421,5 +427,4 @@ if __name__ == "__main__":
 
     # Start de Flask-server
     init_db()
-
     app.run()
