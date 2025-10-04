@@ -153,7 +153,7 @@
     /* Live transcription styling */
     #live-transcription-display {
       min-height: 120px;
-      max-height: 420px; /* Cap height to keep box from growing too large */
+      max-height: 80vh; /* Very large max height */
       overflow-y: auto;
       overflow-x: hidden;
       background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
@@ -165,7 +165,7 @@
       animation: live-pulse 2s ease-in-out infinite;
       transition: all 0.3s ease;
       scroll-behavior: smooth;
-      resize: none; /* Prevent manual growth beyond cap */
+      resize: vertical; /* Allow manual resizing */
     }
 
     /* Auto-expanding behavior */
@@ -733,7 +733,7 @@
       showLoading(true);
 
     try {
-        const response = await fetch('https://ee595b601c72.ngrok-free.app/generate-soep', {
+        const response = await fetch('https://0f261d070618.ngrok-free.app/generate-soep', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: promptText })
@@ -800,15 +800,126 @@
     }
 
     // 🚀 NEW: Enhanced Recording functionality with REAL-TIME transcription
-    let mediaRecorder = null;
+    // Dual recorders: one for realtime streaming, one for batch-quality processing
+    let mediaRecorderRealtime = null;
+    let mediaRecorderBatch = null;
     let audioStream = null;
-    let audioChunks = [];
+    let batchChunks = [];
     let realtimeChunks = [];
     let realtimeInterval = null;
     let liveTranscriptionText = '';
-    let webmHeaderBlob = null;
-    let webmHeaderSaved = false;
+    // No special WebM header handling for realtime chunks
     let isSendingRealtime = false;
+
+    // Sliding-window transcript composition
+    let lockedTranscriptText = '';
+    let currentWindowText = '';
+
+    function computeOverlapSuffixPrefix(a, b) {
+      // Find largest k such that suffix of a of length k equals prefix of b of length k
+      if (!a || !b) return 0;
+      const maxK = Math.min(a.length, b.length, 2000); // cap for performance
+      for (let k = maxK; k > 0; k--) {
+        if (a.slice(a.length - k) === b.slice(0, k)) return k;
+      }
+      return 0;
+    }
+
+    // WAV-based realtime capture (PCM ring buffer at 16kHz)
+    let audioContext = null;
+    let sourceNode = null;
+    let processorNode = null;
+    let pcmRingBuffer = [];
+    let pcmSampleRate = 48000;
+    const TARGET_SAMPLE_RATE = 16000;
+    const WINDOW_SECONDS = 15; // ~last 10 chunks (1.5s tick)
+    const MAX_BUFFER_SECONDS = 20;
+
+    function downsampleTo16k(float32, originalRate) {
+      if (originalRate === TARGET_SAMPLE_RATE) return float32;
+      const ratio = originalRate / TARGET_SAMPLE_RATE;
+      const newLen = Math.floor(float32.length / ratio);
+      const result = new Float32Array(newLen);
+      let offsetResult = 0, offsetBuffer = 0;
+      while (offsetResult < result.length) {
+        const nextOffsetBuffer = Math.round((offsetResult + 1) * ratio);
+        let accum = 0, count = 0;
+        for (let i = offsetBuffer; i < nextOffsetBuffer && i < float32.length; i++) {
+          accum += float32[i];
+          count++;
+        }
+        result[offsetResult] = count ? (accum / count) : 0;
+        offsetResult++;
+        offsetBuffer = nextOffsetBuffer;
+      }
+      return result;
+    }
+
+    function floatTo16BitPCM(float32) {
+      const buf = new ArrayBuffer(float32.length * 2);
+      const view = new DataView(buf);
+      let offset = 0;
+      for (let i = 0; i < float32.length; i++, offset += 2) {
+        let s = Math.max(-1, Math.min(1, float32[i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      }
+      return view;
+    }
+
+    function encodeWAV(int16View, numChannels = 1, sampleRate = TARGET_SAMPLE_RATE) {
+      const buffer = new ArrayBuffer(44 + int16View.byteLength);
+      const view = new DataView(buffer);
+      function writeString(off, str) { for (let i = 0; i < str.length; i++) view.setUint8(off + i, str.charCodeAt(i)); }
+      let off = 0;
+      writeString(off, 'RIFF'); off += 4;
+      view.setUint32(off, 36 + int16View.byteLength, true); off += 4;
+      writeString(off, 'WAVE'); off += 4;
+      writeString(off, 'fmt '); off += 4;
+      view.setUint32(off, 16, true); off += 4; // subchunk size
+      view.setUint16(off, 1, true); off += 2;  // PCM
+      view.setUint16(off, numChannels, true); off += 2;
+      view.setUint32(off, sampleRate, true); off += 4;
+      const byteRate = sampleRate * numChannels * 2;
+      view.setUint32(off, byteRate, true); off += 4;
+      view.setUint16(off, numChannels * 2, true); off += 2; // block align
+      view.setUint16(off, 16, true); off += 2; // bits per sample
+      writeString(off, 'data'); off += 4;
+      view.setUint32(off, int16View.byteLength, true); off += 4;
+      // data
+      new Uint8Array(buffer, 44).set(new Uint8Array(int16View.buffer));
+      return new Blob([view], { type: 'audio/wav' });
+    }
+
+    function appendToPcmRing(samples16k) {
+      pcmRingBuffer.push(samples16k);
+      const maxSamples = TARGET_SAMPLE_RATE * MAX_BUFFER_SECONDS;
+      // trim from front if exceeding
+      let total = 0;
+      for (let i = pcmRingBuffer.length - 1; i >= 0; i--) {
+        total += pcmRingBuffer[i].length;
+        if (total > maxSamples) {
+          pcmRingBuffer = pcmRingBuffer.slice(i + 1);
+          break;
+        }
+      }
+    }
+
+    function getLastWindowAsWavBlob() {
+      const need = TARGET_SAMPLE_RATE * WINDOW_SECONDS;
+      if (pcmRingBuffer.length === 0) return null;
+      let acc = [], total = 0;
+      for (let i = pcmRingBuffer.length - 1; i >= 0 && total < need; i--) {
+        acc.unshift(pcmRingBuffer[i]);
+        total += pcmRingBuffer[i].length;
+      }
+      if (total === 0) return null;
+      let merged = new Float32Array(total);
+      let off = 0;
+      acc.forEach(a => { merged.set(a, off); off += a.length; });
+      if (merged.length > need) merged = merged.slice(merged.length - need);
+      const int16 = floatTo16BitPCM(merged);
+      return encodeWAV(int16, 1, TARGET_SAMPLE_RATE);
+    }
 
     // Real-time transcription during recording
     async function sendRealtimeChunk() {
@@ -825,42 +936,17 @@
           return;
         }
 
-        // Only send the most recent small window of chunks (keep requests small)
-        const maxChunks = 10; // ~20 seconds if 2s chunks
-        // Trim buffer aggressively before sending to avoid growth
-        if (realtimeChunks.length > maxChunks * 2) {
-          const oldLen = realtimeChunks.length;
-          realtimeChunks = realtimeChunks.slice(-maxChunks * 2);
-          console.log(`🧹 Pre-trim buffer: ${oldLen} → ${realtimeChunks.length}`);
-        }
-        const chunksToSend = realtimeChunks.slice(-maxChunks);
-        
-        console.log(`📦 Sending ${chunksToSend.length} recent chunks (buffer: ${realtimeChunks.length})`);
-        
-        // Create audio blob from recent chunks with explicit mime.
-        // Prepend saved WebM header to ensure EBML header is present.
-        const parts = webmHeaderSaved ? [webmHeaderBlob, ...chunksToSend] : chunksToSend;
-        const chunkBlob = new Blob(parts, { type: 'audio/webm;codecs=opus' });
-        // Cap size defensively to avoid Colab/ngrok limits
+        // Build WAV from PCM ring window
+        const wavBlob = getLastWindowAsWavBlob();
+        if (!wavBlob) { console.log('⏳ No PCM window yet'); return; }
         const MAX_BYTES = 2_000_000; // ~2MB
-        if (chunkBlob.size > MAX_BYTES) {
-          console.warn(`🚫 Chunk too large (${chunkBlob.size} bytes). Skipping this tick.`);
-          // Clear buffer to prevent unbounded growth
-          realtimeChunks = realtimeChunks.slice(-maxChunks);
-          return;
-        }
-        
-        // More lenient size check - even small chunks might have speech
-        if (chunkBlob.size < 100) { 
-          console.log(`⚠️ Very small chunk (${chunkBlob.size} bytes), but sending anyway...`);
-        }
-
-        console.log(`📤 Sending chunk (${chunkBlob.size} bytes, ${chunksToSend.length} chunks)`);
+        if (wavBlob.size > MAX_BYTES) { console.warn('🚫 WAV too large'); return; }
+        console.log(`📤 Sending WAV window (${wavBlob.size} bytes)`);
 
         const formData = new FormData();
-        formData.append('audio_chunk', chunkBlob, 'chunk.webm');
+        formData.append('audio_chunk', wavBlob, 'chunk.wav');
 
-        const response = await fetch('https://ee595b601c72.ngrok-free.app/realtime-transcribe', {
+        const response = await fetch('https://0f261d070618.ngrok-free.app/realtime-transcribe', {
           method: 'POST',
           body: formData
         });
@@ -869,8 +955,7 @@
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         
-        // Clear or trim buffer after sending to avoid cumulative growth
-        realtimeChunks = realtimeChunks.slice(-maxChunks);
+        // PCM ring is trimmed on append; keep realtimeChunks for UI only
 
         const result = await response.json();
         console.log(`📨 Server response status: ${response.status}, result:`, result);
@@ -879,31 +964,20 @@
           console.log(`🔍 Full server result:`, JSON.stringify(result, null, 2));
           
           if (result.transcription && result.transcription.trim()) {
-            const newText = result.transcription.trim();
-            console.log(`📝 Raw transcription: "${newText}" (${newText.length} chars)`);
-            console.log(`📊 Previous text length: ${liveTranscriptionText.length} chars`);
-            
-            // Check if this appears to be speaker-formatted content
-            const hasSpeakerLabels = newText.includes('Arts:') || newText.includes('Patiënt:');
-            
-            // REPLACEMENT STRATEGY: Each chunk contains the complete transcription
-            // Only update if this transcription is longer/different than what we have
-            if (newText.length > liveTranscriptionText.length || newText !== liveTranscriptionText) {
-              console.log(`✅ REPLACING with complete transcription: "${newText.substring(0, 100)}..."`);
-              
-              if (hasSpeakerLabels) {
-                console.log(`🎭 Speaker-formatted content detected! Arts/Patiënt labels found.`);
-              }
-              
-              // REPLACE the entire transcription with the new complete one
-              liveTranscriptionText = newText;
-              
-              updateLiveTranscriptionDisplay(liveTranscriptionText);
-            } else {
-              console.log(`🔄 Keeping existing transcription (same or shorter)`);
-              // Still update display to show we're active with timestamp
-              updateLiveTranscriptionDisplay(liveTranscriptionText);
+            const newWindow = result.transcription.trim();
+            const prevWindow = currentWindowText || '';
+            const overlap = computeOverlapSuffixPrefix(prevWindow, newWindow);
+            const agedOut = overlap > 0 ? prevWindow.slice(0, prevWindow.length - overlap) : prevWindow;
+            if (agedOut) {
+              // Append aged-out stable text to locked transcript
+              // Avoid duplicating if it's already the suffix
+              const joiner = lockedTranscriptText && !lockedTranscriptText.endsWith('\n') ? '\n' : '';
+              lockedTranscriptText = lockedTranscriptText + (lockedTranscriptText ? joiner : '') + agedOut;
             }
+            currentWindowText = newWindow;
+            const merged = lockedTranscriptText + (lockedTranscriptText && currentWindowText ? '\n' : '') + currentWindowText;
+            liveTranscriptionText = merged;
+            updateLiveTranscriptionDisplay(liveTranscriptionText);
           } else {
             console.log(`⚠️ Empty transcription - server result:`, result);
             console.log(`📊 Current text: "${liveTranscriptionText}" (${liveTranscriptionText.length} chars)`);
@@ -914,11 +988,9 @@
           console.log('❌ Chunk processing failed:', result);
         }
 
-        // Keep only a bounded buffer (~16 seconds)
-        if (realtimeChunks.length > maxChunks * 2) {
-          const oldLength = realtimeChunks.length;
-          realtimeChunks = realtimeChunks.slice(-maxChunks * 2);
-          console.log(`🧹 Post-trim buffer: ${oldLength} → ${realtimeChunks.length}`);
+        // UI buffer trimming (optional)
+        if (realtimeChunks.length > 20) {
+          realtimeChunks = realtimeChunks.slice(-20);
         }
 
       } catch (error) {
@@ -1019,9 +1091,11 @@
          // Reset cancellation flag at start
          recordingCancelled = false;
          liveTranscriptionText = '';
+         lockedTranscriptText = '';
+         currentWindowText = '';
          
          audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-         audioChunks = [];
+         batchChunks = [];
          realtimeChunks = [];
          
          let options;
@@ -1035,33 +1109,54 @@
            options = {};
          }
            
-         mediaRecorder = new MediaRecorder(audioStream, options);
-         
-         mediaRecorder.ondataavailable = event => {
+         // Create separate recorders
+         mediaRecorderRealtime = new MediaRecorder(audioStream, options);
+         mediaRecorderBatch = new MediaRecorder(audioStream, options);
+
+         // Realtime recorder handler
+         mediaRecorderRealtime.ondataavailable = event => {
            if (event.data.size > 0 && !recordingCancelled) {
-             if (!webmHeaderSaved) {
-               webmHeaderBlob = event.data;
-               webmHeaderSaved = true;
-               console.log('🧩 Saved WebM header chunk');
+             console.log(`🎵 RT chunk: ${event.data.size} bytes (buffer: ${realtimeChunks.length + 1})`);
+             realtimeChunks.push(event.data);
+             // Keep only last 10 chunks in buffer immediately for consistent windowing
+             const MAX_RT_CHUNKS = 10;
+             if (realtimeChunks.length > MAX_RT_CHUNKS) {
+               realtimeChunks = realtimeChunks.slice(-MAX_RT_CHUNKS);
              }
-             console.log(`🎵 Audio chunk received: ${event.data.size} bytes (total chunks: ${realtimeChunks.length + 1})`);
-             audioChunks.push(event.data);  // For final batch transcription
-             realtimeChunks.push(event.data);  // For real-time transcription
-             
-             // Show that we're actively receiving audio
              const display = document.getElementById('live-transcript-content');
              if (realtimeChunks.length === 1) {
                display.innerHTML = '<div class="typing-indicator" style="color: #0891b2;">🎵 Audio gedetecteerd, transcriptie start binnenkort...</div>';
              }
-           } else if (event.data.size === 0) {
-             console.log('⚠️ Empty audio chunk received');
            }
          };
-         
-         mediaRecorder.onstop = handleRecordingStop;
-         
-         // Start recording with smaller chunks for faster transcription
-         mediaRecorder.start(2000); // 2-second chunks for faster response
+
+         // Batch recorder handler
+         mediaRecorderBatch.ondataavailable = event => {
+           if (event.data.size > 0 && !recordingCancelled) {
+             console.log(`📦 Batch chunk: ${event.data.size} bytes (buffer: ${batchChunks.length + 1})`);
+             batchChunks.push(event.data);
+           }
+         };
+
+         // Only batch recorder triggers final processing
+         mediaRecorderBatch.onstop = handleRecordingStop;
+
+         // Start both recorders
+         mediaRecorderRealtime.start(1500); // frequent chunks for realtime
+         mediaRecorderBatch.start(5000); // coarser chunks for memory safety
+         // Setup PCM capture for WAV-based realtime
+         audioContext = new (window.AudioContext || window.webkitAudioContext)();
+         pcmSampleRate = audioContext.sampleRate;
+         sourceNode = audioContext.createMediaStreamSource(audioStream);
+         processorNode = audioContext.createScriptProcessor(4096, 1, 1);
+         processorNode.onaudioprocess = (e) => {
+           if (recordingCancelled) return;
+           const input = e.inputBuffer.getChannelData(0);
+           const down = downsampleTo16k(input, pcmSampleRate);
+           appendToPcmRing(down);
+         };
+         sourceNode.connect(processorNode);
+         processorNode.connect(audioContext.destination);
          
          // Show recording overlay
          document.getElementById('recording-overlay').classList.remove('hidden');
@@ -1072,7 +1167,7 @@
          
          // Start real-time transcription interval - faster for immediate feedback  
          realtimeInterval = setInterval(() => {
-           if (!recordingCancelled && mediaRecorder && mediaRecorder.state === 'recording') {
+          if (!recordingCancelled && mediaRecorderRealtime && mediaRecorderRealtime.state === 'recording') {
              console.log(`🔄 Real-time interval tick - chunks available: ${realtimeChunks.length}`);
              sendRealtimeChunk();
            } else {
@@ -1082,7 +1177,7 @@
                realtimeInterval = null;
              }
            }
-         }, 2000); // Every 2 seconds for faster response
+         }, 1500); // Every 1.5 seconds for faster response
          
        } catch (error) {
          console.error('Recording error:', error);
@@ -1091,8 +1186,11 @@
      }
 
     function stopRecording() {
-      if (mediaRecorder && mediaRecorder.state === 'recording') {
-        mediaRecorder.stop();
+      if (mediaRecorderRealtime && mediaRecorderRealtime.state === 'recording') {
+        mediaRecorderRealtime.stop();
+      }
+      if (mediaRecorderBatch && mediaRecorderBatch.state === 'recording') {
+        mediaRecorderBatch.stop();
       }
       
       // Stop real-time transcription
@@ -1103,6 +1201,12 @@
       
       document.getElementById('recording-overlay').classList.add('hidden');
       document.getElementById('whisper-btn').disabled = false;
+      // Tear down PCM capture
+      try {
+        if (processorNode) { processorNode.disconnect(); processorNode = null; }
+        if (sourceNode) { sourceNode.disconnect(); sourceNode = null; }
+        if (audioContext) { audioContext.close(); audioContext = null; }
+      } catch (e) {}
     }
 
          let recordingCancelled = false;
@@ -1110,8 +1214,11 @@
      function cancelRecording() {
        recordingCancelled = true; // Set flag to prevent processing
        
-       if (mediaRecorder && mediaRecorder.state === 'recording') {
-         mediaRecorder.stop();
+       if (mediaRecorderRealtime && mediaRecorderRealtime.state === 'recording') {
+         mediaRecorderRealtime.stop();
+       }
+       if (mediaRecorderBatch && mediaRecorderBatch.state === 'recording') {
+         mediaRecorderBatch.stop();
        }
        
        // Stop real-time transcription
@@ -1121,9 +1228,18 @@
        }
        
        // Clear audio chunks to prevent processing
-       audioChunks = [];
+       batchChunks = [];
        realtimeChunks = [];
        liveTranscriptionText = '';
+       lockedTranscriptText = '';
+       currentWindowText = '';
+       // Clear PCM ring and teardown
+       pcmRingBuffer = [];
+       try {
+         if (processorNode) { processorNode.disconnect(); processorNode = null; }
+         if (sourceNode) { sourceNode.disconnect(); sourceNode = null; }
+         if (audioContext) { audioContext.close(); audioContext = null; }
+       } catch (e) {}
        
        document.getElementById('recording-overlay').classList.add('hidden');
        document.getElementById('whisper-btn').disabled = false;
@@ -1148,49 +1264,42 @@
          return;
        }
        
-       if (audioChunks.length === 0) {
+       if (batchChunks.length === 0) {
          console.log('No audio chunks available, skipping processing');
          return;
        }
        
-      // Use the live transcription text if available, otherwise do batch transcription
-      if (liveTranscriptionText.trim()) {
-        console.log('Using live transcription for SOEP generation');
-        document.getElementById('text-input').value = liveTranscriptionText.trim();
-        await generateSOEP();
-      } else {
-        console.log('Falling back to batch transcription');
-        // Fallback to original batch processing
-       const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-       const formData = new FormData();
+      // Always use batch recording for SOEP: send batch to backend (Azure-corrected) then generate SOEP
+      console.log('Processing batch recording for Azure-corrected transcription → SOEP');
+      const audioBlob = new Blob(batchChunks, { type: 'audio/webm' });
+      const formData = new FormData();
       formData.append('file', audioBlob, 'recording.webm');
-       
-       showLoading(true);
-       
-       try {
-         const response = await fetch('https://ee595b601c72.ngrok-free.app/transcribe-audio', {
-           method: 'POST',
-           body: formData
-         });
-         
-         const result = await response.json();
-         
-         if (result.error) {
-           throw new Error(result.error);
-         }
-         
-         // Set transcribed text
-        document.getElementById('text-input').value = result.transcription;
-         
-         // Auto-generate SOEP
-        await generateSOEP();
-         
-       } catch (error) {
-         console.error('Transcription error:', error);
-         alert('Fout bij transcriptie. Probeer het opnieuw.');
-      } finally {
-         showLoading(false);
+      
+      showLoading(true);
+      
+      try {
+        const response = await fetch('https://0f261d070618.ngrok-free.app/transcribe-audio', {
+          method: 'POST',
+          body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.error) {
+          throw new Error(result.error);
         }
+        
+        // Set transcribed text (Azure-corrected from backend)
+        document.getElementById('text-input').value = result.transcription || '';
+        
+        // Auto-generate SOEP
+        await generateSOEP();
+        
+      } catch (error) {
+        console.error('Transcription error:', error);
+        alert('Fout bij transcriptie. Probeer het opnieuw.');
+      } finally {
+        showLoading(false);
       }
          
             // Clean up
@@ -1297,7 +1406,7 @@
          const language2 = document.getElementById('language-2').value;
          
          // Send to AI for intelligent language detection and translation
-         const response = await fetch('https://ee595b601c72.ngrok-free.app/intelligent-translate', {
+         const response = await fetch('https://0f261d070618.ngrok-free.app/intelligent-translate', {
            method: 'POST',
            headers: {
              'Content-Type': 'application/json',
