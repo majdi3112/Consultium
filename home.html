@@ -811,13 +811,13 @@
     // No special WebM header handling for realtime chunks
     let isSendingRealtime = false;
 
-    // Sliding-window transcript composition
-    let lockedTranscriptText = '';
-    let currentWindowText = '';
+    // Pinned transcript accumulation (aged-out text from sliding window)
+    let pinnedTranscriptText = '';
+    let prevWindowText = '';
 
     function computeOverlapSuffixPrefix(a, b) {
       if (!a || !b) return 0;
-      const maxK = Math.min(a.length, b.length, 2000); // cap for performance
+      const maxK = Math.min(a.length, b.length, 2000);
       for (let k = maxK; k > 0; k--) {
         if (a.slice(a.length - k) === b.slice(0, k)) return k;
       }
@@ -959,22 +959,47 @@
         const result = await response.json();
         console.log(`📨 Server response status: ${response.status}, result:`, result);
         
-        if (result.status === 'success') {
+          if (result.status === 'success') {
           console.log(`🔍 Full server result:`, JSON.stringify(result, null, 2));
           
           if (result.transcription && result.transcription.trim()) {
-            const newWindow = result.transcription.trim();
-            const prevWindow = currentWindowText || '';
-            const overlap = computeOverlapSuffixPrefix(prevWindow, newWindow);
-            const agedOut = overlap > 0 ? prevWindow.slice(0, prevWindow.length - overlap) : prevWindow;
-            if (agedOut) {
-              const joiner = lockedTranscriptText && !lockedTranscriptText.endsWith('\n') ? '\n' : '';
-              lockedTranscriptText = lockedTranscriptText + (lockedTranscriptText ? joiner : '') + agedOut;
+            const newText = result.transcription.trim();
+            console.log(`📝 Raw transcription: "${newText}" (${newText.length} chars)`);
+            console.log(`📊 Previous text length: ${liveTranscriptionText.length} chars`);
+            
+            // Check if this appears to be speaker-formatted content
+            const hasSpeakerLabels = newText.includes('Arts:') || newText.includes('Patiënt:');
+
+              // Build combined display: pinned + current window
+              // Append aged-out prefix from previous window to pinned
+              const overlap = computeOverlapSuffixPrefix(prevWindowText, newText);
+              const agedOut = overlap > 0 ? prevWindowText.slice(0, prevWindowText.length - overlap) : '';
+              if (agedOut && agedOut.trim()) {
+                const joiner = pinnedTranscriptText && !pinnedTranscriptText.endsWith('\n') ? '\n' : '';
+                pinnedTranscriptText = pinnedTranscriptText + (pinnedTranscriptText ? joiner : '') + agedOut;
+              }
+              const combinedText = pinnedTranscriptText + (pinnedTranscriptText && newText ? '\n' : '') + newText;
+            
+            // REPLACEMENT STRATEGY: Each chunk contains the complete transcription
+            // Only update if this transcription is longer/different than what we have
+              if (combinedText.length > liveTranscriptionText.length || combinedText !== liveTranscriptionText) {
+              console.log(`✅ REPLACING with complete transcription: "${newText.substring(0, 100)}..."`);
+              
+              if (hasSpeakerLabels) {
+                console.log(`🎭 Speaker-formatted content detected! Arts/Patiënt labels found.`);
+              }
+              
+                // Replace display with pinned + current window
+                liveTranscriptionText = combinedText;
+              
+              updateLiveTranscriptionDisplay(liveTranscriptionText);
+            } else {
+              console.log(`🔄 Keeping existing transcription (same or shorter)`);
+              // Still update display to show we're active with timestamp
+              updateLiveTranscriptionDisplay(liveTranscriptionText);
             }
-            currentWindowText = newWindow;
-            const merged = lockedTranscriptText + (lockedTranscriptText && currentWindowText ? '\n' : '') + currentWindowText;
-            liveTranscriptionText = merged;
-            updateLiveTranscriptionDisplay(liveTranscriptionText);
+              // Update previous window reference for next tick
+              prevWindowText = newText;
           } else {
             console.log(`⚠️ Empty transcription - server result:`, result);
             console.log(`📊 Current text: "${liveTranscriptionText}" (${liveTranscriptionText.length} chars)`);
@@ -1088,8 +1113,8 @@
          // Reset cancellation flag at start
          recordingCancelled = false;
          liveTranscriptionText = '';
-         lockedTranscriptText = '';
-         currentWindowText = '';
+         pinnedTranscriptText = '';
+         prevWindowText = '';
          
          audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
          batchChunks = [];
@@ -1228,8 +1253,8 @@
        batchChunks = [];
        realtimeChunks = [];
        liveTranscriptionText = '';
-       lockedTranscriptText = '';
-       currentWindowText = '';
+       pinnedTranscriptText = '';
+       prevWindowText = '';
        // Clear PCM ring and teardown
        pcmRingBuffer = [];
        try {
