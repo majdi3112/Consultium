@@ -816,7 +816,6 @@
     let currentWindowText = '';
 
     function computeOverlapSuffixPrefix(a, b) {
-      // Find largest k such that suffix of a of length k equals prefix of b of length k
       if (!a || !b) return 0;
       const maxK = Math.min(a.length, b.length, 2000); // cap for performance
       for (let k = maxK; k > 0; k--) {
@@ -969,8 +968,6 @@
             const overlap = computeOverlapSuffixPrefix(prevWindow, newWindow);
             const agedOut = overlap > 0 ? prevWindow.slice(0, prevWindow.length - overlap) : prevWindow;
             if (agedOut) {
-              // Append aged-out stable text to locked transcript
-              // Avoid duplicating if it's already the suffix
               const joiner = lockedTranscriptText && !lockedTranscriptText.endsWith('\n') ? '\n' : '';
               lockedTranscriptText = lockedTranscriptText + (lockedTranscriptText ? joiner : '') + agedOut;
             }
