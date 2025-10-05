@@ -917,13 +917,47 @@
             // Check if this appears to be speaker-formatted content
             const hasSpeakerLabels = newText.includes('Arts:') || newText.includes('Patiënt:');
             
+            // 📌 PIN MECHANIC: Detecteer wanneer tekst aan het BEGIN verdwijnt (= buiten window)
+            // Dit gebeurt wanneer nieuwe tekst NIET begint met (een deel van) de oude tekst
+            let shouldPin = false;
+            
+            if (liveTranscriptionText.length > 100 && newText.length > 50) {
+              // Neem eerste 50 chars van oude tekst (zonder "Arts:" of "Patiënt:" labels)
+              const oldTextClean = liveTranscriptionText.replace(/^(Arts:|Patiënt:)\s*/i, '').trim();
+              const newTextClean = newText.replace(/^(Arts:|Patiënt:)\s*/i, '').trim();
+              
+              // Check of de nieuwe tekst NIET begint met het begin van de oude tekst
+              // Dit betekent dat er tekst aan het begin is verdwenen (buiten window)
+              const oldStart = oldTextClean.substring(0, 50).trim();
+              
+              if (oldStart && !newTextClean.includes(oldStart)) {
+                shouldPin = true;
+                console.log(`📌 DETECTIE: Oude tekst niet meer in nieuwe transcriptie - tekst valt buiten window!`);
+                console.log(`   Oude start: "${oldStart}"`);
+                console.log(`   Nieuwe tekst bevat dit niet meer`);
+              }
+            }
+            
+            // Pin oude transcriptie als deze buiten het window valt
+            if (shouldPin) {
+              // Check of we deze tekst niet al hebben gepind (voorkom duplicates)
+              const firstWords = liveTranscriptionText.substring(0, 100).trim();
+              if (!pinnedTranscriptText.includes(firstWords)) {
+                pinnedTranscriptText += (pinnedTranscriptText ? '\n\n' : '') + liveTranscriptionText;
+                console.log(`✅ GEPIND! Oude transcriptie opgeslagen (${liveTranscriptionText.length} chars)`);
+                console.log(`📊 Totaal gepinde tekst: ${pinnedTranscriptText.length} chars`);
+              } else {
+                console.log(`⏭️ Tekst al gepind, skip duplicate`);
+              }
+            }
+            
             // REPLACEMENT STRATEGY: Each chunk contains the complete transcription
             // Only update if this transcription is longer/different than what we have
             if (newText.length > liveTranscriptionText.length || newText !== liveTranscriptionText) {
-              console.log(`✅ REPLACING with complete transcription: "${newText.substring(0, 100)}..."`);
+              console.log(`✅ UPDATING transcription: "${newText.substring(0, 100)}..." (${newText.length} chars)`);
               
               if (hasSpeakerLabels) {
-                console.log(`🎭 Speaker-formatted content detected! Arts/Patiënt labels found.`);
+                console.log(`🎭 Speaker-formatted content detected!`);
               }
               
               // REPLACE the entire transcription with the new complete one
@@ -931,24 +965,8 @@
               lastTranscriptionLength = newText.length;
               
               updateLiveTranscriptionDisplay(liveTranscriptionText);
-            } else if (newText.length < liveTranscriptionText.length && liveTranscriptionText.length > 100) {
-              // 📌 PIN MECHANIC: Tekst wordt korter = oude tekst valt buiten window!
-              // Pin de huidige tekst voordat deze verdwijnt
-              console.log(`📌 PINNING oude transcriptie (${liveTranscriptionText.length} chars) - nieuwe is korter (${newText.length} chars)`);
-              
-              // Voeg oude tekst toe aan pinnedTranscriptText (alleen als het nog niet gepind is)
-              if (!pinnedTranscriptText.includes(liveTranscriptionText.substring(0, 50))) {
-                pinnedTranscriptText += (pinnedTranscriptText ? '\n\n' : '') + liveTranscriptionText;
-                console.log(`✅ Gepind! Totaal gepinde tekst: ${pinnedTranscriptText.length} chars`);
-              }
-              
-              // Update naar nieuwe (kortere) live transcriptie
-              liveTranscriptionText = newText;
-              lastTranscriptionLength = newText.length;
-              
-              updateLiveTranscriptionDisplay(liveTranscriptionText);
             } else {
-              console.log(`🔄 Keeping existing transcription (same or shorter)`);
+              console.log(`🔄 Keeping existing transcription`);
               // Still update display to show we're active with timestamp
               updateLiveTranscriptionDisplay(liveTranscriptionText);
             }
