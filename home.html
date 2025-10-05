@@ -689,7 +689,7 @@
       showLoading(true);
 
     try {
-        const response = await fetch('https://90aead773124.ngrok-free.app/generate-soep', {
+        const response = await fetch('https://385d654613a7.ngrok-free.app/generate-soep', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: promptText })
@@ -767,10 +767,10 @@
     // No special WebM header handling for realtime chunks
     let isSendingRealtime = false;
 
-    // 📌 PIN MECHANIC: Automatisch oude transcripties bewaren
-    let pinnedTranscriptText = ''; // Bevat alle gepinde (oude) transcripties
-    let lastTranscriptionLength = 0; // Track lengte om te detecteren wanneer tekst verdwijnt
-    let seenSentences = new Set(); // Track welke zinnen we al hebben gezien (voorkom duplicates)
+    // 📌 FINAL + LIVE BUFFER: Slimme stabilisatie van transcripties
+    let finalTranscript = '';          // Vastgezette (stabiele) tekst - verandert niet meer
+    let windowHistory = [];            // Laatste N window-outputs van GPT (N=2 voor stabiliteit)
+    const MAX_WINDOWS = 2;             // 2 = zin moet 2x gelijk blijven voordat het vast staat
 
     // WAV-based realtime capture (PCM ring buffer at 16kHz)
     let audioContext = null;
@@ -893,7 +893,7 @@
         const formData = new FormData();
         formData.append('audio_chunk', wavBlob, 'chunk.wav');
 
-        const response = await fetch('https://90aead773124.ngrok-free.app/realtime-transcribe', {
+        const response = await fetch('https://385d654613a7.ngrok-free.app/realtime-transcribe', {
           method: 'POST',
           body: formData
         });
@@ -915,67 +915,49 @@
             console.log(`📝 Raw transcription: "${newText}" (${newText.length} chars)`);
             console.log(`📊 Previous text length: ${liveTranscriptionText.length} chars`);
             
-            // Check if this appears to be speaker-formatted content
-            const hasSpeakerLabels = newText.includes('Arts:') || newText.includes('Patiënt:');
+            // 📌 FINAL + LIVE BUFFER: Verwerk nieuwe window van GPT
+            console.log(`📨 Nieuwe window ontvangen: "${newText.substring(0, 100)}..." (${newText.length} chars)`);
             
-            // 📌 PIN MECHANIC: Detecteer wanneer tekst aan het BEGIN verdwijnt (= buiten window)
-            // Dit gebeurt wanneer nieuwe tekst NIET begint met (een deel van) de oude tekst
-            let shouldPin = false;
+            // Voeg deze window toe aan history
+            const windowTextNormalized = normalize(newText);
+            windowHistory.push(windowTextNormalized);
             
-            if (liveTranscriptionText.length > 100 && newText.length > 50) {
-              // Neem eerste 50 chars van oude tekst (zonder "Arts:" of "Patiënt:" labels)
-              const oldTextClean = liveTranscriptionText.replace(/^(Arts:|Patiënt:)\s*/i, '').trim();
-              const newTextClean = newText.replace(/^(Arts:|Patiënt:)\s*/i, '').trim();
+            // Hou alleen laatste MAX_WINDOWS
+            if (windowHistory.length > MAX_WINDOWS) {
+              windowHistory.shift();
+              console.log(`🗑️ Oude window verwijderd (max ${MAX_WINDOWS} windows)`);
+            }
+            
+            // Als we minstens 2 windows hebben: commit de stabiele prefix
+            if (windowHistory.length >= 2) {
+              const last = windowHistory[windowHistory.length - 1];
+              const prev = windowHistory[windowHistory.length - 2];
+              const stablePrefix = commonSentencePrefix(prev, last);
               
-              // Check of de nieuwe tekst NIET begint met het begin van de oude tekst
-              // Dit betekent dat er tekst aan het begin is verdwenen (buiten window)
-              const oldStart = oldTextClean.substring(0, 50).trim();
-              
-              if (oldStart && !newTextClean.includes(oldStart)) {
-                shouldPin = true;
-                console.log(`📌 DETECTIE: Oude tekst niet meer in nieuwe transcriptie - tekst valt buiten window!`);
-                console.log(`   Oude start: "${oldStart}"`);
-                console.log(`   Nieuwe tekst bevat dit niet meer`);
+              if (stablePrefix) {
+                console.log(`✅ STABIELE PREFIX gevonden (${stablePrefix.length} chars):`);
+                console.log(`   "${stablePrefix.substring(0, 100)}..."`);
+                
+                // Commit naar final transcript
+                finalTranscript = (finalTranscript + (finalTranscript ? '\n\n' : '') + stablePrefix).trim();
+                console.log(`📌 FINAL transcript nu: ${finalTranscript.split(' ').length} woorden`);
+                
+                // Strip prefix uit ALLE windows
+                windowHistory = windowHistory.map(w => stripPrefixSentences(w, stablePrefix));
+                console.log(`🔄 Prefix gestript uit alle windows`);
               }
             }
             
-            // Pin oude transcriptie als deze buiten het window valt
-            if (shouldPin) {
-              // Check of we deze tekst niet al hebben gepind (voorkom duplicates)
-              const firstWords = liveTranscriptionText.substring(0, 100).trim();
-              if (!pinnedTranscriptText.includes(firstWords)) {
-                pinnedTranscriptText += (pinnedTranscriptText ? '\n\n' : '') + liveTranscriptionText;
-                console.log(`✅ GEPIND! Oude transcriptie opgeslagen (${liveTranscriptionText.length} chars)`);
-                console.log(`📊 Totaal gepinde tekst: ${pinnedTranscriptText.length} chars`);
-              } else {
-                console.log(`⏭️ Tekst al gepind, skip duplicate`);
-              }
-            }
+            // Het live stuk is de nieuwste (gestripte) window
+            liveTranscriptionText = windowHistory[windowHistory.length - 1] || '';
+            console.log(`🔴 LIVE transcript: ${liveTranscriptionText.split(' ').length} woorden`);
             
-            // REPLACEMENT STRATEGY: Each chunk contains the complete transcription
-            // Only update if this transcription is longer/different than what we have
-            if (newText.length > liveTranscriptionText.length || newText !== liveTranscriptionText) {
-              console.log(`✅ UPDATING transcription: "${newText.substring(0, 100)}..." (${newText.length} chars)`);
-              
-              if (hasSpeakerLabels) {
-                console.log(`🎭 Speaker-formatted content detected!`);
-              }
-              
-              // REPLACE the entire transcription with the new complete one
-              liveTranscriptionText = newText;
-              lastTranscriptionLength = newText.length;
-              
-              updateLiveTranscriptionDisplay(liveTranscriptionText);
-            } else {
-              console.log(`🔄 Keeping existing transcription`);
-              // Still update display to show we're active with timestamp
-              updateLiveTranscriptionDisplay(liveTranscriptionText);
-            }
+            // Update display met final + live
+            updateLiveTranscriptionDisplay(finalTranscript, liveTranscriptionText);
           } else {
             console.log(`⚠️ Empty transcription - server result:`, result);
-            console.log(`📊 Current text: "${liveTranscriptionText}" (${liveTranscriptionText.length} chars)`);
             // Update display to show we're still listening (but keep existing text)
-            updateLiveTranscriptionDisplay(liveTranscriptionText || '🎤 Luister mee...');
+            updateLiveTranscriptionDisplay(finalTranscript, liveTranscriptionText || '');
           }
         } else if (result.status === 'skipped' || result.status === 'error') {
           console.log('❌ Chunk processing failed:', result);
@@ -994,65 +976,90 @@
       }
     }
 
-    // 📌 Functie om duplicates te verwijderen uit transcriptie
-    function removeDuplicates(text) {
-      if (!text || !text.trim()) return text;
+    // 📌 HELPER FUNCTIES voor Final + Live Buffer systeem
+    
+    // Normaliseer tekst: spaties, quotes
+    const normalize = (s) => {
+      if (!s) return '';
+      return s.replace(/\s+/g, ' ')
+              .replace(/[\u2018\u2019]/g, "'")
+              .replace(/[\u201C\u201D]/g, '"')
+              .trim();
+    };
+    
+    // Split op zinsniveau (behoud Arts:/Patiënt: labels)
+    const splitSentences = (s) => {
+      if (!s) return [];
+      const normalized = normalize(s);
       
-      // Split op speaker labels
-      const blocks = [];
-      let currentBlock = '';
-      let currentSpeaker = '';
+      // Split op Arts:/Patiënt: EN op zinseinde
+      // Eerst split op speaker labels
+      const parts = [];
+      let current = '';
       
-      text.split('\n').forEach(line => {
+      // Split op newlines en speaker labels
+      const lines = normalized.split(/\n+/);
+      lines.forEach(line => {
         line = line.trim();
         if (!line) return;
         
-        if (line.startsWith('Arts:') || line.startsWith('Patiënt:')) {
-          // Nieuwe speaker, sla vorige block op
-          if (currentBlock) {
-            blocks.push({ speaker: currentSpeaker, content: currentBlock.trim() });
-          }
-          // Start nieuwe block
-          currentSpeaker = line.startsWith('Arts:') ? 'Arts' : 'Patiënt';
-          currentBlock = line.replace(/^(Arts:|Patiënt:)\s*/, '');
+        // Check of deze regel een speaker label heeft
+        if (line.match(/^(Arts|Patiënt):/)) {
+          if (current) parts.push(current.trim());
+          current = line;
         } else {
-          // Voortzetting van huidige speaker
-          currentBlock += ' ' + line;
+          current += ' ' + line;
         }
       });
       
-      // Voeg laatste block toe
-      if (currentBlock) {
-        blocks.push({ speaker: currentSpeaker, content: currentBlock.trim() });
+      if (current) parts.push(current.trim());
+      
+      return parts.filter(Boolean);
+    };
+    
+    // Vind gemeenschappelijke prefix op zinsniveau tussen twee windows
+    const commonSentencePrefix = (a, b) => {
+      if (!a || !b) return '';
+      
+      const A = splitSentences(a);
+      const B = splitSentences(b);
+      const out = [];
+      const len = Math.min(A.length, B.length);
+      
+      for (let i = 0; i < len; i++) {
+        const normA = normalize(A[i]);
+        const normB = normalize(B[i]);
+        
+        if (normA === normB) {
+          out.push(A[i]);
+        } else {
+          break; // Stop bij eerste verschil
+        }
       }
       
-      // Filter duplicates - gebruik eerste 30 chars als "fingerprint"
-      const uniqueBlocks = [];
-      const seen = new Set();
+      return out.join('\n\n');
+    };
+    
+    // Strip prefix (op zinsniveau) uit een window-tekst
+    const stripPrefixSentences = (full, prefix) => {
+      if (!prefix || !full) return full;
       
-      blocks.forEach(block => {
-        if (!block.content) return;
-        
-        // Maak een fingerprint van de content (eerste 30 chars, lowercase, zonder punctuatie)
-        const fingerprint = block.content
-          .substring(0, 30)
-          .toLowerCase()
-          .replace(/[^\w\s]/g, '')
-          .trim();
-        
-        if (fingerprint && !seen.has(fingerprint)) {
-          seen.add(fingerprint);
-          uniqueBlocks.push(block);
-        } else if (fingerprint) {
-          console.log(`🗑️ Duplicate verwijderd: "${block.content.substring(0, 50)}..."`);
+      const pfSentences = splitSentences(prefix);
+      const fullSentences = splitSentences(full);
+      
+      // Verwijder de eerste N zinnen die overeenkomen met prefix
+      let stripCount = 0;
+      for (let i = 0; i < Math.min(pfSentences.length, fullSentences.length); i++) {
+        if (normalize(pfSentences[i]) === normalize(fullSentences[i])) {
+          stripCount++;
+        } else {
+          break;
         }
-      });
+      }
       
-      // Herbouw de tekst zonder duplicates
-      return uniqueBlocks
-        .map(block => `${block.speaker}: ${block.content}`)
-        .join('\n\n');
-    }
+      const remaining = fullSentences.slice(stripCount);
+      return remaining.join('\n\n');
+    };
 
     function formatSpeakerText(text) {
       if (!text || !text.includes('Arts:') && !text.includes('Patiënt:')) {
@@ -1093,82 +1100,13 @@
 
     // Removed typing animation for live transcription for instant updates
 
-    function updateLiveTranscriptionDisplay(text) {
+    function updateLiveTranscriptionDisplay(finalText, liveText) {
       const display = document.getElementById('live-transcript-content');
       const container = document.getElementById('live-transcription-display');
       const currentTime = new Date().toLocaleTimeString();
       
-      if (text && text.trim() && text.trim() !== '🎤 Luister mee...') {
-        if (text.length > 100 || pinnedTranscriptText.length > 0) {
-          container.classList.add('expanding');
-        }
-        
-        // 📌 VERWIJDER DUPLICATES uit gepinde + live tekst
-        const cleanedPinned = pinnedTranscriptText ? removeDuplicates(pinnedTranscriptText) : '';
-        const cleanedLive = removeDuplicates(text);
-        
-        // Als we zowel gepinde als live tekst hebben, verwijder ook duplicates tussen beide
-        let finalPinned = cleanedPinned;
-        let finalLive = cleanedLive;
-        
-        if (cleanedPinned && cleanedLive) {
-          // Combineer alles en verwijder duplicates
-          const combined = cleanedPinned + '\n\n' + cleanedLive;
-          const cleanedCombined = removeDuplicates(combined);
-          
-          // Split weer in gepind en live
-          // Houd alleen de nieuwe content in live die niet in gepind zit
-          const pinnedBlocks = cleanedPinned.split('\n\n').filter(b => b.trim());
-          const allBlocks = cleanedCombined.split('\n\n').filter(b => b.trim());
-          
-          // Bepaal welke blokken nieuw zijn (niet in pinnedBlocks)
-          const pinnedFingerprints = new Set();
-          pinnedBlocks.forEach(block => {
-            const fp = block.substring(0, 30).toLowerCase().replace(/[^\w\s]/g, '').trim();
-            pinnedFingerprints.add(fp);
-          });
-          
-          const liveBlocks = allBlocks.filter(block => {
-            const fp = block.substring(0, 30).toLowerCase().replace(/[^\w\s]/g, '').trim();
-            return !pinnedFingerprints.has(fp);
-          });
-          
-          finalPinned = cleanedPinned;
-          finalLive = liveBlocks.join('\n\n');
-        }
-        
-        const wordCount = finalLive.split(' ').length;
-        const totalWordCount = finalPinned ? finalPinned.split(' ').length + wordCount : wordCount;
-        
-        // 📌 PIN MECHANIC: Toon gepinde tekst bovenaan, dan live tekst
-        let displayHTML = '';
-        
-        if (finalPinned) {
-          const formattedPinned = formatSpeakerText(finalPinned);
-          displayHTML += `
-            <div style="word-wrap: break-word; padding-bottom: 1rem; border-bottom: 2px dashed rgba(59, 130, 246, 0.3); margin-bottom: 1rem;">
-              <div style="display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%); color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; margin-bottom: 0.5rem;">
-                📌 GEPINDE TRANSCRIPTIE
-              </div>
-              ${formattedPinned}
-            </div>
-          `;
-        }
-        
-        const formattedText = formatSpeakerText(finalLive);
-        displayHTML += `
-          <div style="word-wrap: break-word;">
-            ${finalPinned ? '<div style="display: inline-block; background: rgba(16, 185, 129, 0.1); color: #059669; padding: 4px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; margin-bottom: 0.5rem; border: 1px solid rgba(16, 185, 129, 0.3);">🔴 LIVE TRANSCRIPTIE</div>' : ''}
-            ${formattedText}
-          </div>
-          <div class="typing-indicator" style="margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(8, 145, 178, 0.2); color: #0891b2; font-size: 0.9rem;">
-            <span style="animation: pulse 1.5s infinite;">● Live transcriptie actief - ${totalWordCount} woorden totaal</span>
-            <span style="float: right; opacity: 0.7;">${currentTime}</span>
-          </div>
-        `;
-        
-        display.innerHTML = displayHTML;
-      } else {
+      // Als er geen content is (nog aan het wachten)
+      if ((!finalText || !finalText.trim()) && (!liveText || !liveText.trim() || liveText === '🎤 Luister mee...')) {
         container.classList.remove('expanding');
         display.innerHTML = `
           <div class="typing-indicator" style="color: #0891b2; font-size: 1.1rem;">
@@ -1176,8 +1114,60 @@
             <div style="margin-top: 4px; font-size: 0.9rem; opacity: 0.7;">${currentTime}</div>
           </div>
         `;
+        return;
       }
       
+      // Er is content - toon final + live
+      if ((finalText && finalText.length > 100) || (liveText && liveText.length > 100)) {
+        container.classList.add('expanding');
+      }
+      
+      const finalWordCount = finalText ? finalText.split(' ').length : 0;
+      const liveWordCount = liveText ? liveText.split(' ').length : 0;
+      const totalWordCount = finalWordCount + liveWordCount;
+      
+      // 📌 FINAL + LIVE BUFFER: Toon final (grijs/blauw - vastgezet) en live (zwart - kan nog veranderen)
+      let displayHTML = '';
+      
+      // FINAL TRANSCRIPT (vastgezet - niet meer veranderend)
+      if (finalText && finalText.trim()) {
+        const formattedFinal = formatSpeakerText(finalText);
+        displayHTML += `
+          <div style="word-wrap: break-word; opacity: 0.7; padding-bottom: 1rem; border-bottom: 2px solid rgba(59, 130, 246, 0.2); margin-bottom: 1rem;">
+            <div style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; margin-bottom: 0.5rem;">
+              ✓ VASTGEZET (${finalWordCount} woorden)
+            </div>
+            <div style="filter: grayscale(0.3);">
+              ${formattedFinal}
+            </div>
+          </div>
+        `;
+      }
+      
+      // LIVE TRANSCRIPT (kan nog veranderen)
+      if (liveText && liveText.trim()) {
+        const formattedLive = formatSpeakerText(liveText);
+        displayHTML += `
+          <div style="word-wrap: break-word;">
+            <div style="display: inline-block; background: rgba(16, 185, 129, 0.15); color: #059669; padding: 4px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; margin-bottom: 0.5rem; border: 1px solid rgba(16, 185, 129, 0.3);">
+              🔴 LIVE (${liveWordCount} woorden - kan nog wijzigen)
+            </div>
+            ${formattedLive}
+          </div>
+        `;
+      }
+      
+      // Status footer
+      displayHTML += `
+        <div class="typing-indicator" style="margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(8, 145, 178, 0.2); color: #0891b2; font-size: 0.9rem;">
+          <span style="animation: pulse 1.5s infinite;">● Transcriptie actief - ${totalWordCount} woorden totaal</span>
+          <span style="float: right; opacity: 0.7;">${currentTime}</span>
+        </div>
+      `;
+      
+      display.innerHTML = displayHTML;
+      
+      // Auto-scroll naar beneden
       container.scrollTop = container.scrollHeight;
       setTimeout(() => {
         container.scrollTop = container.scrollHeight;
@@ -1189,9 +1179,9 @@
         }
       }, 100);
       
-      const wordCountLog = text ? text.split(' ').length : 0;
-      if (wordCountLog > 0) {
-        console.log(`📊 Transcriptie progress: ${wordCountLog} woorden (live), ${pinnedTranscriptText ? pinnedTranscriptText.split(' ').length + ' woorden (gepind)' : '0 gepind'}`);
+      // Logging
+      if (finalWordCount > 0 || liveWordCount > 0) {
+        console.log(`📊 Display: ${finalWordCount} woorden (final) + ${liveWordCount} woorden (live) = ${totalWordCount} totaal`);
       }
     }
 
@@ -1200,10 +1190,9 @@
          // Reset cancellation flag at start
          recordingCancelled = false;
          liveTranscriptionText = '';
-         // 📌 PIN MECHANIC: Reset gepinde tekst bij nieuwe opname
-         pinnedTranscriptText = '';
-         lastTranscriptionLength = 0;
-         seenSentences.clear(); // Reset seen sentences voor nieuwe opname
+         // 📌 FINAL + LIVE BUFFER: Reset bij nieuwe opname
+         finalTranscript = '';
+         windowHistory = [];
          
          audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
          batchChunks = [];
@@ -1274,7 +1263,7 @@
          document.getElementById('whisper-btn').disabled = true;
          
          // Initialize live transcription display
-         updateLiveTranscriptionDisplay('');
+         updateLiveTranscriptionDisplay('', '');
          
          // Start real-time transcription interval - faster for immediate feedback  
          realtimeInterval = setInterval(() => {
@@ -1342,10 +1331,9 @@
        batchChunks = [];
        realtimeChunks = [];
        liveTranscriptionText = '';
-       // 📌 PIN MECHANIC: Reset gepinde tekst bij cancel
-       pinnedTranscriptText = '';
-       lastTranscriptionLength = 0;
-       seenSentences.clear(); // Reset seen sentences
+       // 📌 FINAL + LIVE BUFFER: Reset bij cancel
+       finalTranscript = '';
+       windowHistory = [];
        // Clear PCM ring and teardown
        pcmRingBuffer = [];
        try {
@@ -1391,7 +1379,7 @@
       showLoading(true);
       
       try {
-        const response = await fetch('https://90aead773124.ngrok-free.app/transcribe-audio', {
+        const response = await fetch('https://385d654613a7.ngrok-free.app/transcribe-audio', {
           method: 'POST',
           body: formData
         });
@@ -1403,17 +1391,26 @@
         }
         
         // Set transcribed text (Azure-corrected from backend)
-        // 📌 PIN MECHANIC: Combineer gepinde + live transcriptie voor SOEP
+        // 📌 FINAL + LIVE BUFFER: Combineer final + live + batch transcriptie voor SOEP
         let fullTranscription = result.transcription || '';
-        if (pinnedTranscriptText && liveTranscriptionText) {
-          // Als we gepinde tekst hebben, combineer deze met de batch transcriptie
-          fullTranscription = pinnedTranscriptText + '\n\n' + fullTranscription;
-          console.log(`📌 SOEP gebruikt gepinde tekst + batch transcriptie (${fullTranscription.split(' ').length} woorden totaal)`);
+        
+        // Combineer alle delen: final (vastgezet) + live (laatste window) + batch (high quality)
+        const parts = [];
+        if (finalTranscript && finalTranscript.trim()) {
+          parts.push(finalTranscript);
+          console.log(`📌 Final transcript: ${finalTranscript.split(' ').length} woorden`);
+        }
+        if (liveTranscriptionText && liveTranscriptionText.trim()) {
+          parts.push(liveTranscriptionText);
+          console.log(`🔴 Live transcript: ${liveTranscriptionText.split(' ').length} woorden`);
+        }
+        if (fullTranscription && fullTranscription.trim()) {
+          parts.push(fullTranscription);
+          console.log(`📦 Batch transcript: ${fullTranscription.split(' ').length} woorden`);
         }
         
-        // 🗑️ Verwijder duplicates uit de volledige transcriptie voor SOEP
-        fullTranscription = removeDuplicates(fullTranscription);
-        console.log(`✨ Na duplicate verwijdering: ${fullTranscription.split(' ').length} woorden`);
+        fullTranscription = parts.join('\n\n');
+        console.log(`✨ SOEP totaal: ${fullTranscription.split(' ').length} woorden`);
         
         document.getElementById('text-input').value = fullTranscription;
         
@@ -1531,7 +1528,7 @@
          const language2 = document.getElementById('language-2').value;
          
          // Send to AI for intelligent language detection and translation
-         const response = await fetch('https://90aead773124.ngrok-free.app/intelligent-translate', {
+         const response = await fetch('https://385d654613a7.ngrok-free.app/intelligent-translate', {
            method: 'POST',
            headers: {
              'Content-Type': 'application/json',
