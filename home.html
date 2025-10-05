@@ -810,9 +810,6 @@
     let liveTranscriptionText = '';
     // No special WebM header handling for realtime chunks
     let isSendingRealtime = false;
-    // Pinned accumulation for aged-out window text
-    let pinnedTranscriptText = '';
-    let prevWindowText = '';
 
     // WAV-based realtime capture (PCM ring buffer at 16kHz)
     let audioContext = null;
@@ -823,16 +820,6 @@
     const TARGET_SAMPLE_RATE = 16000;
     const WINDOW_SECONDS = 15; // ~last 10 chunks (1.5s tick)
     const MAX_BUFFER_SECONDS = 20;
-
-    // Compute longest overlap where suffix of a equals prefix of b
-    function computeOverlapSuffixPrefix(a, b) {
-      if (!a || !b) return 0;
-      const maxK = Math.min(a.length, b.length, 2000);
-      for (let k = maxK; k > 0; k--) {
-        if (a.slice(a.length - k) === b.slice(0, k)) return k;
-      }
-      return 0;
-    }
 
     function downsampleTo16k(float32, originalRate) {
       if (originalRate === TARGET_SAMPLE_RATE) return float32;
@@ -969,16 +956,6 @@
             
             // Check if this appears to be speaker-formatted content
             const hasSpeakerLabels = newText.includes('Arts:') || newText.includes('Patiënt:');
-            // Pin aged-out portion from previous window
-            const overlap = computeOverlapSuffixPrefix((prevWindowText || '').trim(), newText.trim());
-            let agedOut = overlap > 0 ? prevWindowText.slice(0, prevWindowText.length - overlap) : prevWindowText;
-            agedOut = (agedOut || '').trim();
-            if (agedOut && agedOut.length > 5 && !pinnedTranscriptText.endsWith(agedOut)) {
-              const joiner = pinnedTranscriptText && !pinnedTranscriptText.endsWith('\n') ? '\n' : '';
-              pinnedTranscriptText = pinnedTranscriptText + (pinnedTranscriptText ? joiner : '') + agedOut;
-            }
-            prevWindowText = newText;
-            const displayCombined = pinnedTranscriptText + (pinnedTranscriptText && newText ? '\n' : '') + newText;
             
             // REPLACEMENT STRATEGY: Each chunk contains the complete transcription
             // Only update if this transcription is longer/different than what we have
@@ -991,20 +968,18 @@
               
               // REPLACE the entire transcription with the new complete one
               liveTranscriptionText = newText;
-              // Display pinned + current window
-              updateLiveTranscriptionDisplay(displayCombined);
+              
+              updateLiveTranscriptionDisplay(liveTranscriptionText);
             } else {
               console.log(`🔄 Keeping existing transcription (same or shorter)`);
               // Still update display to show we're active with timestamp
-              const fallbackCombined = pinnedTranscriptText + (pinnedTranscriptText && liveTranscriptionText ? '\n' : '') + liveTranscriptionText;
-              updateLiveTranscriptionDisplay(fallbackCombined);
+              updateLiveTranscriptionDisplay(liveTranscriptionText);
             }
           } else {
             console.log(`⚠️ Empty transcription - server result:`, result);
             console.log(`📊 Current text: "${liveTranscriptionText}" (${liveTranscriptionText.length} chars)`);
             // Update display to show we're still listening (but keep existing text)
-            const fallbackCombined = pinnedTranscriptText + (pinnedTranscriptText && liveTranscriptionText ? '\n' : '') + (liveTranscriptionText || '');
-            updateLiveTranscriptionDisplay(fallbackCombined || '🎤 Luister mee...');
+            updateLiveTranscriptionDisplay(liveTranscriptionText || '🎤 Luister mee...');
           }
         } else if (result.status === 'skipped' || result.status === 'error') {
           console.log('❌ Chunk processing failed:', result);
@@ -1113,8 +1088,6 @@
          // Reset cancellation flag at start
          recordingCancelled = false;
          liveTranscriptionText = '';
-         pinnedTranscriptText = '';
-         prevWindowText = '';
          
          audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
          batchChunks = [];
@@ -1253,8 +1226,6 @@
        batchChunks = [];
        realtimeChunks = [];
        liveTranscriptionText = '';
-       pinnedTranscriptText = '';
-       prevWindowText = '';
        // Clear PCM ring and teardown
        pcmRingBuffer = [];
        try {
