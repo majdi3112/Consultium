@@ -572,110 +572,73 @@
 
     
 
-     <!-- Live Tolk Tab -->
-     <div id="tolk-tab" class="tab-content hidden">
+     <!-- Live Tolk Tab (minimal) -->
+      <div id="tolk-tab" class="tab-content hidden">
        <div class="mb-8">
-         <h2 class="text-3xl font-bold text-gray-900 mb-2">Live Tolk - Intelligente Vertaling</h2>
-         <p class="text-gray-600">Automatische taaldetectie en vertaling - spreek gewoon en de AI doet de rest!</p>
+         <h2 class="text-4xl font-bold text-gray-900 tracking-tight mb-2">Live Tolk</h2>
+         <p class="text-gray-600 text-base">Realtime speech‑to‑speech vertaling tussen arts en patiënt. AI vertaalt en kan een SOEP‑verslag genereren.</p>
        </div>
 
-       <!-- Language Selection -->
-       <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 mb-8">
-         <h3 class="text-xl font-semibold text-gray-900 mb-4">Taal Instellingen</h3>
-         <div class="grid md:grid-cols-2 gap-6">
-           <div>
-             <label class="block text-sm font-medium text-gray-700 mb-2">Taal 1 (meestal Nederlands)</label>
-             <select id="language-1" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 mb-8">
+          <h3 class="text-xl font-semibold text-gray-900 mb-4">Taal Instellingen</h3>
+          <div class="grid md:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Taal 1 (arts)</label>
+              <select id="language-1" class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-200 bg-gray-50 hover:bg-white transition">
                <option value="nl">Nederlands</option>
-               <option value="en">English</option>
-               <option value="fr">Français</option>
-               <option value="de">Deutsch</option>
-               <option value="es">Español</option>
+               <option value="en">Engels</option>
+               <option value="fr">Frans</option>
+               <option value="ar">Arabisch</option>
+               <option value="de">Duits</option>
+               <option value="es">Spaans</option>
              </select>
            </div>
-           <div>
-             <label class="block text-sm font-medium text-gray-700 mb-2">Taal 2 (patiënt taal)</label>
-             <select id="language-2" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-               <option value="en">English</option>
-               <option value="ar">العربية</option>
-               <option value="tr">Türkçe</option>
-               <option value="pl">Polski</option>
-               <option value="es">Español</option>
-               <option value="fr">Français</option>
-               <option value="de">Deutsch</option>
-               <option value="it">Italiano</option>
-               <option value="pt">Português</option>
-               <option value="ru">Русский</option>
-               <option value="zh">中文</option>
-               <option value="hi">हिन्दी</option>
-               <option value="ur">اردو</option>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Taal 2 (patiënt)</label>
+              <select id="language-2" class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-200 bg-gray-50 hover:bg-white transition">
+               <option value="nl">Nederlands</option>
+               <option value="en">Engels</option>
+               <option value="fr">Frans</option>
+               <option value="ar">Arabisch</option>
+               <option value="de">Duits</option>
+               <option value="es">Spaans</option>
              </select>
            </div>
          </div>
        </div>
 
-       <!-- Single Recording Interface -->
-       <div class="bg-white rounded-2xl p-8 shadow-sm border border-gray-200 mb-8">
-         <div class="text-center mb-6">
-           <div id="tolk-status" class="px-4 py-2 bg-gray-100 text-gray-600 rounded-full text-sm inline-block mb-4">
-             Klaar om te starten
-           </div>
-           
-           <div class="mb-6">
-             <button id="tolk-record-btn" class="w-24 h-24 rounded-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white flex items-center justify-center hover:shadow-lg transition-all duration-300 transform hover:scale-105 mx-auto">
-               <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
-               </svg>
-             </button>
-             <p class="text-lg text-gray-600 mt-3">Klik om te spreken</p>
-             <p class="text-sm text-gray-500">Live spraak-naar-spraak vertaling - spreek en luister direct</p>
-           </div>
-         </div>
-
-         <!-- Language 1 (Doctor) -->
-         <div class="mb-6">
-           <h4 class="text-lg font-semibold text-gray-900 mb-3">Taal van arts <span id="doctor-lang-display" class="text-sm text-gray-500">(Nederlands)</span></h4>
-           <div id="live-transcript" class="min-h-24 p-4 bg-gray-50 rounded-lg border border-gray-200 text-gray-700">
-             <span class="text-gray-400">Gesproken woorden verschijnen hier...</span>
-           </div>
-         </div>
-
-         <!-- Language 2 (Patient) -->
-         <div>
-           <h4 class="text-lg font-semibold text-gray-900 mb-3">Taal van patiënt <span id="patient-lang-display" class="text-sm text-gray-500">(English)</span></h4>
-           <div id="translation-output" class="min-h-24 p-4 bg-blue-50 rounded-lg border border-blue-200 text-blue-800">
-             <span class="text-blue-400">Automatische vertaling verschijnt hier...</span>
-           </div>
-         </div>
-       </div>
-
-       <!-- Live Conversation Display -->
-       <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 mb-8">
-         <h3 class="text-xl font-semibold text-gray-900 mb-4">Live Gesprek</h3>
-         <div id="tolk-conversation-history" class="space-y-4 max-h-64 overflow-y-auto custom-scrollbar">
-           <div class="text-gray-500 text-center py-8">Live gesprek wordt hier weergegeven tijdens de sessie...</div>
-         </div>
-         <p class="text-sm text-gray-500 mt-4">Na het gesprek kunt u de samenvatting kopiëren naar uw HIS-systeem via SOEP verslag</p>
-       </div>
-
-       <!-- How it works -->
-       <div class="bg-blue-50 rounded-2xl p-6 border border-blue-200">
-         <h3 class="text-lg font-semibold text-blue-900 mb-3">Hoe werkt de Intelligente Tolk?</h3>
-         <div class="grid md:grid-cols-2 gap-4 text-sm text-blue-800">
-           <div class="space-y-2">
-             <p><strong>1. Live gesprek:</strong> AI luistert en vertaalt in real-time</p>
-             <p><strong>2. Speech-to-speech:</strong> Spreek en krijg direct gesproken antwoord</p>
-             <p><strong>3. Automatische detectie:</strong> Herkent taal en vertaalt naar de andere</p>
-           </div>
-           <div class="space-y-2">
-             <p><strong>4. Live weergave:</strong> Gesprek wordt live getoond, niet opgeslagen</p>
-             <p><strong>5. SOEP integratie:</strong> Na gesprek via SOEP naar HIS-systeem</p>
-             <p><strong>6. Een-klik-bediening:</strong> Simpel en intuïtief gebruik</p>
-           </div>
-         </div>
+       <div class="bg-white rounded-2xl p-12 shadow-sm border border-gray-200 mb-10 text-center">
+          <div id="tolk-visual-wrapper" class="relative inline-block mx-auto">
+            <span class="speak-ring r1"></span>
+            <span class="speak-ring r2"></span>
+            <button id="tolk-record-btn" aria-label="Start/stop tolk" class="w-32 h-32 rounded-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center">
+              <svg class="w-14 h-14" viewBox="0 0 64 64" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <!-- left waves -->
+                <path class="mic-wave wave1" stroke-width="2.2" d="M16 22c-4 5-4 15 0 20"/>
+                <path class="mic-wave wave2" stroke-width="2.2" d="M12 18c-6 7-6 21 0 28"/>
+                <!-- mic body -->
+                <path stroke-width="2.4" d="M38 32v-8a6 6 0 10-12 0v8a6 6 0 1012 0z"/>
+                <path stroke-width="2.2" d="M20 31v1a12 12 0 0024 0v-1"/>
+                <path stroke-width="2.2" d="M32 44v8M26 52h12"/>
+                <!-- right waves -->
+                <path class="mic-wave wave1" stroke-width="2.2" d="M48 22c4 5 4 15 0 20"/>
+                <path class="mic-wave wave2" stroke-width="2.2" d="M52 18c6 7 6 21 0 28"/>
+              </svg>
+            </button>
+          </div>
+          <div id="tolk-status" class="px-4 py-2 bg-gray-50 border border-gray-200 text-gray-700 rounded-full text-sm block w-fit mx-auto mt-5 mb-6">Klaar voor spraak‑naar‑spraak</div>
+          <canvas id="tolk-visualizer" class="w-full max-w-xl h-20 mx-auto mt-2"></canvas>
+         <p class="text-sm text-gray-500 mt-4">Klik om spraak‑naar‑spraak vertaling te starten/stoppen</p>
+         <audio id="tolk-remote-audio" autoplay class="hidden"></audio>
+        <div class="mt-6 flex items-center justify-center">
+          <button id="tolk-soep-btn" class="px-6 py-3 blue-gradient text-white rounded-lg font-semibold disabled:opacity-50" disabled>
+            SOEP
+          </button>
+        </div>
        </div>
     </div>
   </main>
+
 
   <!-- Scripts -->
   <script>
