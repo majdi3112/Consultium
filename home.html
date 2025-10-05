@@ -139,7 +139,7 @@
       background: white;
       border-radius: 1rem;
       padding: 1.5rem;
-       margin-bottom: 1rem;
+      margin-bottom: 1rem;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
       border: 1px solid #e5e7eb;
     }
@@ -158,7 +158,7 @@
       overflow-x: hidden;
       background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
       border: 2px solid #0ea5e9;
-       border-radius: 1rem;
+      border-radius: 1rem;
       padding: 1rem;
       font-family: 'Inter', sans-serif;
       line-height: 1.6;
@@ -201,57 +201,6 @@
     @keyframes pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.5; }
-    }
-
-    /* Typing Animation */
-    @keyframes typing-cursor {
-      0%, 50% { opacity: 1; }
-      51%, 100% { opacity: 0; }
-    }
-
-    .typing-cursor {
-      animation: typing-cursor 0.8s infinite;
-      color: #0891b2;
-      font-weight: bold;
-      font-size: 1.2em;
-      text-shadow: 0 0 2px rgba(8, 145, 178, 0.5);
-    }
-
-    .typing-text {
-      display: inline;
-    }
-
-    /* Smooth text reveal animation */
-    @keyframes text-reveal {
-      from {
-        opacity: 0;
-        transform: translateY(2px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .text-reveal {
-      animation: text-reveal 0.5s ease-out;
-    }
-
-    /* Typing text animation */
-    @keyframes char-fade-in {
-      from {
-        opacity: 0.3;
-        transform: translateY(1px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .typing-text {
-      display: inline;
-      animation: char-fade-in 0.2s ease-out;
     }
 
     .live-transcript-text {
@@ -308,6 +257,27 @@
     .custom-scrollbar::-webkit-scrollbar-thumb:hover {
       background: #94a3b8;
     }
+    
+    /* Tolk speaking visualizer */
+    #tolk-visual-wrapper { position: relative; }
+    #tolk-visual-wrapper { --amp: 0; }
+    .speak-ring { position: absolute; inset: -10px; border-radius: 9999px; transform-origin: center; pointer-events: none; opacity: 0; transition: opacity 0.3s ease, transform 0.2s ease; }
+    .speak-ring.r1 { background: radial-gradient(closest-side, rgba(59,130,246,0.35), transparent 70%); filter: blur(6px); }
+    .speak-ring.r2 { background: radial-gradient(closest-side, rgba(6,182,212,0.30), transparent 75%); filter: blur(12px); }
+    #tolk-visual-wrapper.speaking .speak-ring { opacity: 1; transform: scale(calc(1 + var(--amp) * 0.6)); }
+
+    /* Button breathing glow while AI speaks */
+    #tolk-record-btn.ai-speaking { animation: ring-breathe 1.4s ease-in-out infinite; }
+    @keyframes ring-breathe {
+      0%, 100% { box-shadow: 0 0 0 2px rgba(59,130,246,0.35), 0 0 0 12px rgba(6,182,212,0.15); }
+      50% { box-shadow: 0 0 0 8px rgba(59,130,246,0.45), 0 0 0 20px rgba(6,182,212,0.20); }
+    }
+
+    /* Mic waves inside button */
+    #tolk-record-btn svg .mic-wave { opacity: 0.55; }
+    #tolk-record-btn.ai-speaking svg .mic-wave { animation: wave-pulse 1.6s ease-in-out infinite; }
+    #tolk-record-btn.ai-speaking svg .mic-wave.wave2 { animation-delay: .25s; }
+    @keyframes wave-pulse { 0%,100% { opacity: .35; } 50% { opacity: 1; } }
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -353,11 +323,8 @@
     <button id="cancel-recording-btn" class="absolute top-6 right-6 text-3xl text-gray-500 hover:text-gray-700 transition-colors">&times;</button>
     
     <div class="text-center mb-8">
-      <h2 class="text-3xl font-bold text-gray-900 mb-2">🎙️ Live Opname & Transcriptie</h2>
-      <p class="text-gray-600">Spreek duidelijk - de AI schrijft realtime mee</p>
-      <div class="mt-2 text-sm text-blue-600 bg-blue-50 rounded-lg px-3 py-2 inline-block">
-        💡 <strong>Nieuw:</strong> AI identificeert automatisch Arts & Patiënt tijdens het gesprek
-      </div>
+      <h2 class="text-3xl font-bold text-gray-900 mb-2">Live Transcriptie</h2>
+      <p class="text-gray-600">AI identificeert automatisch Arts & Patiënt tijdens het gesprek</p>
     </div>
     
     <!-- Live Transcriptie Display (vervangt waveform) -->
@@ -369,9 +336,14 @@
       </div>
     </div>
     
-    <button id="soep-recording-btn" class="px-8 py-4 blue-gradient text-white text-xl font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-      STOP & SOEP Maken
-    </button>
+    <div class="flex gap-4">
+      <button id="soep-recording-btn" class="px-8 py-4 blue-gradient text-white text-xl font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+        SOEP
+      </button>
+      <button id="stop-translation-btn" class="px-8 py-4 bg-gray-200 text-gray-800 text-xl font-semibold rounded-full shadow hover:shadow transition-all duration-300">
+        Stop Vertaling
+      </button>
+    </div>
   </div>
 
   <!-- Main Content -->
@@ -383,7 +355,7 @@
        <div class="blue-gradient rounded-2xl p-8 text-white mb-8">
         <div class="max-w-3xl">
           <h1 class="text-4xl font-bold mb-4">Welkom bij Consultium AI</h1>
-          <p class="text-xl mb-6 opacity-90">Revolutioneer uw medische documentatie met AI-gestuurde SOEP-verslagen en real-time transcriptie.</p>
+          <p class="text-xl mb-6 opacity-90">De slimme assistent die je tijd geeft voor wat er écht toe doet; de patient. Bespaar tijd, houd focus.</p>
                                 <div class="flex flex-wrap gap-4">
              <button onclick="switchTab('soep')" class="px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-50 transition-colors">
                Start SOEP Verslag
@@ -416,7 +388,7 @@
              </div>
              <h3 class="text-xl font-semibold text-gray-900">Live Opname</h3>
            </div>
-           <p class="text-gray-600 mb-4">Real-time transcriptie met 99% nauwkeurigheid tijdens het consult.</p>
+           <p class="text-gray-600 mb-4">Real-time transcriptie tijdens het consult.</p>
            <button onclick="switchTab('soep')" class="text-green-600 font-medium hover:text-green-700">Start opname →</button>
          </div>
 
@@ -431,7 +403,7 @@
              </div>
              <h3 class="text-xl font-semibold text-gray-900">Live Tolk</h3>
            </div>
-           <p class="text-gray-600 mb-4">Real-time vertaling tussen dokter en patiënt tijdens consultaties.</p>
+           <p class="text-gray-600 mb-4">Speech-to-speech vertaling tussen dokter en patiënt tijdens het consult.</p>
            <button onclick="switchTab('tolk')" class="text-orange-600 font-medium hover:text-orange-700">Start vertaling →</button>
          </div>
 
@@ -451,9 +423,9 @@
                    </svg>
                  </div>
                </div>
-               <h3 class="text-xl font-semibold text-gray-700">AI Diagnostiek</h3>
+               <h3 class="text-xl font-semibold text-gray-700">Smart DD's</h3>
              </div>
-             <p class="text-gray-500 mb-4">Intelligente ondersteuning bij het stellen van diagnoses met medische AI.</p>
+             <p class="text-gray-500 mb-4">Met slimme DD-voorstellen denkt de AI actief met je mee en versterkt jouw klinisch inzicht.</p>
              <div class="flex items-center text-gray-400 font-medium cursor-not-allowed">
                <svg class="w-4 h-4 mr-2 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
@@ -463,6 +435,32 @@
            </div>
          </div>
 
+         <div class="coming-soon-card pulse-glow" style="animation-delay: 1.5s;">
+           <div class="coming-soon-badge">BINNENKORT</div>
+           <div class="coming-soon-content">
+             <div class="flex items-center mb-4">
+               <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mr-4 relative">
+                 <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                 </svg>
+                 <!-- Lamp Alert Icon -->
+                 <div class="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center lamp-pulse">
+                   <svg class="w-2.5 h-2.5 text-yellow-800" fill="currentColor" viewBox="0 0 20 20">
+                     <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
+                   </svg>
+                 </div>
+               </div>
+               <h3 class="text-xl font-semibold text-gray-700">AI Chat Assistant</h3>
+             </div>
+             <p class="text-gray-500 mb-4">Stel medische vragen en krijg directe, gevalideerde antwoorden.</p>
+             <div class="flex items-center text-gray-400 font-medium cursor-not-allowed">
+               <svg class="w-4 h-4 mr-2 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+               </svg>
+               Wordt ontwikkeld...
+             </div>
+           </div>
+         </div>         
          <div class="coming-soon-card pulse-glow" style="animation-delay: 1s;">
            <div class="coming-soon-badge">BINNENKORT</div>
            <div class="coming-soon-content">
@@ -478,9 +476,9 @@
                    </svg>
                  </div>
                </div>
-               <h3 class="text-xl font-semibold text-gray-700">Smart Recepten</h3>
+               <h3 class="text-xl font-semibold text-gray-700">Smart Alerts</h3>
              </div>
-             <p class="text-gray-500 mb-4">Automatische receptgeneratie met medicatie-interactie controle.</p>
+             <p class="text-gray-500 mb-4">Kleurcodes geven urgentie aan en waarschuwen direct bij fout beleid of medicatie met een waarschuwingsdriehoek.</p>
              <div class="flex items-center text-gray-400 font-medium cursor-not-allowed">
                <svg class="w-4 h-4 mr-2 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
@@ -497,8 +495,8 @@
     <!-- SOEP Tab -->
     <div id="soep-tab" class="tab-content hidden">
       <div class="mb-8">
-        <h2 class="text-3xl font-bold text-gray-900 mb-2">SOEP Verslag met Live Transcriptie</h2>
-        <p class="text-gray-600">Voer uw consultnotities in of gebruik spraakopname met real-time transcriptie voor automatische SOEP-structurering</p>
+        <h2 class="text-3xl font-bold text-gray-900 mb-2">SOEP Verslag</h2>
+        <p class="text-gray-600">Voer uw consultnotities in of gebruik spraakopname met real-time transcriptie</p>
       </div>
 
       <!-- Input Section -->
@@ -515,17 +513,17 @@
         
         <div class="flex flex-wrap gap-4">
           <button id="whisper-btn" class="px-6 py-3 blue-gradient text-white rounded-lg font-semibold hover:shadow-lg transition-all duration-300">
-            🎙️ Start Live Opname
+            Start Opname
           </button>
           <button id="generate-soep" class="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-semibold hover:bg-gray-200 transition-colors">
-            SOEP Genereren
+            SOEP
           </button>
         </div>
       </div>
 
       <!-- SOEP Results -->
       <div id="verslag-container" class="hidden">
-        <h3 class="text-2xl font-bold text-gray-900 mb-6">Gegenereerd SOEP Verslag</h3>
+        <h3 class="text-2xl font-bold text-gray-900 mb-6">SOEP Verslag</h3>
         <div class="grid gap-6">
           <div id="s-section" class="soep-section">
             <div class="flex justify-between items-center mb-4">
@@ -570,7 +568,7 @@
       </div>
     </div>
 
-    
+
 
      <!-- Live Tolk Tab (minimal) -->
       <div id="tolk-tab" class="tab-content hidden">
@@ -637,8 +635,6 @@
         </div>
        </div>
     </div>
-  </main>
-
 
   <!-- Scripts -->
   <script>
