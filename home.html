@@ -689,7 +689,7 @@
       showLoading(true);
 
     try {
-        const response = await fetch('https://01db26bce50c.ngrok-free.app/generate-soep', {
+        const response = await fetch('https://0358b0b7f92d.ngrok-free.app/generate-soep', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: promptText })
@@ -766,6 +766,20 @@
     let liveTranscriptionText = '';
     // No special WebM header handling for realtime chunks
     let isSendingRealtime = false;
+
+    // 📌 Pinned transcript accumulation (aged-out text from sliding window)
+    let pinnedTranscriptText = '';
+    let prevWindowText = '';
+    let totalRtChunksSeen = 0;
+
+    function computeOverlapSuffixPrefix(a, b) {
+      if (!a || !b) return 0;
+      const maxK = Math.min(a.length, b.length, 2000);
+      for (let k = maxK; k > 0; k--) {
+        if (a.slice(a.length - k) === b.slice(0, k)) return k;
+      }
+      return 0;
+    }
 
     // WAV-based realtime capture (PCM ring buffer at 16kHz)
     let audioContext = null;
@@ -888,7 +902,7 @@
         const formData = new FormData();
         formData.append('audio_chunk', wavBlob, 'chunk.wav');
 
-        const response = await fetch('https://01db26bce50c.ngrok-free.app/realtime-transcribe', {
+        const response = await fetch('https://0358b0b7f92d.ngrok-free.app/realtime-transcribe', {
           method: 'POST',
           body: formData
         });
@@ -913,6 +927,25 @@
             // Check if this appears to be speaker-formatted content
             const hasSpeakerLabels = newText.includes('Arts:') || newText.includes('Patiënt:');
             
+            // 📌 PIN aged-out text only if we've seen > 10 chunks (window is full and sliding)
+            if (totalRtChunksSeen > 10 && prevWindowText && prevWindowText.trim()) {
+              const overlap = computeOverlapSuffixPrefix(prevWindowText.trim(), newText.trim());
+              let agedOut = overlap > 0 ? prevWindowText.slice(0, prevWindowText.length - overlap) : prevWindowText;
+              agedOut = agedOut.trim();
+              
+              if (agedOut && agedOut.length > 5 && !pinnedTranscriptText.endsWith(agedOut)) {
+                const joiner = pinnedTranscriptText && !pinnedTranscriptText.endsWith('\n') ? '\n' : '';
+                pinnedTranscriptText = pinnedTranscriptText + (pinnedTranscriptText ? joiner : '') + agedOut;
+                console.log(`📌 Pinned aged-out text: "${agedOut.substring(0, 50)}..." (total pinned: ${pinnedTranscriptText.length} chars)`);
+              }
+            }
+            
+            // Update prevWindowText for next tick
+            prevWindowText = newText;
+            
+            // Build combined display: pinned + current window
+            const displayCombined = pinnedTranscriptText + (pinnedTranscriptText && newText ? '\n' : '') + newText;
+            
             // REPLACEMENT STRATEGY: Each chunk contains the complete transcription
             // Only update if this transcription is longer/different than what we have
             if (newText.length > liveTranscriptionText.length || newText !== liveTranscriptionText) {
@@ -925,11 +958,12 @@
               // REPLACE the entire transcription with the new complete one
               liveTranscriptionText = newText;
               
-              updateLiveTranscriptionDisplay(liveTranscriptionText);
+              // Display the combined pinned + current window
+              updateLiveTranscriptionDisplay(displayCombined);
             } else {
               console.log(`🔄 Keeping existing transcription (same or shorter)`);
               // Still update display to show we're active with timestamp
-              updateLiveTranscriptionDisplay(liveTranscriptionText);
+              updateLiveTranscriptionDisplay(displayCombined);
             }
           } else {
             console.log(`⚠️ Empty transcription - server result:`, result);
@@ -1044,6 +1078,9 @@
          // Reset cancellation flag at start
          recordingCancelled = false;
          liveTranscriptionText = '';
+         pinnedTranscriptText = '';
+         prevWindowText = '';
+         totalRtChunksSeen = 0;
          
          audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
          batchChunks = [];
@@ -1067,7 +1104,8 @@
          // Realtime recorder handler
          mediaRecorderRealtime.ondataavailable = event => {
            if (event.data.size > 0 && !recordingCancelled) {
-             console.log(`🎵 RT chunk: ${event.data.size} bytes (buffer: ${realtimeChunks.length + 1})`);
+             totalRtChunksSeen++; // Track total chunks received
+             console.log(`🎵 RT chunk: ${event.data.size} bytes (total seen: ${totalRtChunksSeen}, buffer: ${realtimeChunks.length + 1})`);
              realtimeChunks.push(event.data);
              // Keep only last 10 chunks in buffer immediately for consistent windowing
              const MAX_RT_CHUNKS = 10;
@@ -1182,6 +1220,9 @@
        batchChunks = [];
        realtimeChunks = [];
        liveTranscriptionText = '';
+       pinnedTranscriptText = '';
+       prevWindowText = '';
+       totalRtChunksSeen = 0;
        // Clear PCM ring and teardown
        pcmRingBuffer = [];
        try {
@@ -1227,7 +1268,7 @@
       showLoading(true);
       
       try {
-        const response = await fetch('https://01db26bce50c.ngrok-free.app/transcribe-audio', {
+        const response = await fetch('https://0358b0b7f92d.ngrok-free.app/transcribe-audio', {
           method: 'POST',
           body: formData
         });
@@ -1355,7 +1396,7 @@
          const language2 = document.getElementById('language-2').value;
          
          // Send to AI for intelligent language detection and translation
-         const response = await fetch('https://01db26bce50c.ngrok-free.app/intelligent-translate', {
+         const response = await fetch('https://0358b0b7f92d.ngrok-free.app/intelligent-translate', {
            method: 'POST',
            headers: {
              'Content-Type': 'application/json',
