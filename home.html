@@ -770,6 +770,7 @@
     // 📌 PIN MECHANIC: Automatisch oude transcripties bewaren
     let pinnedTranscriptText = ''; // Bevat alle gepinde (oude) transcripties
     let lastTranscriptionLength = 0; // Track lengte om te detecteren wanneer tekst verdwijnt
+    let seenSentences = new Set(); // Track welke zinnen we al hebben gezien (voorkom duplicates)
 
     // WAV-based realtime capture (PCM ring buffer at 16kHz)
     let audioContext = null;
@@ -993,6 +994,66 @@
       }
     }
 
+    // 📌 Functie om duplicates te verwijderen uit transcriptie
+    function removeDuplicates(text) {
+      if (!text || !text.trim()) return text;
+      
+      // Split op speaker labels
+      const blocks = [];
+      let currentBlock = '';
+      let currentSpeaker = '';
+      
+      text.split('\n').forEach(line => {
+        line = line.trim();
+        if (!line) return;
+        
+        if (line.startsWith('Arts:') || line.startsWith('Patiënt:')) {
+          // Nieuwe speaker, sla vorige block op
+          if (currentBlock) {
+            blocks.push({ speaker: currentSpeaker, content: currentBlock.trim() });
+          }
+          // Start nieuwe block
+          currentSpeaker = line.startsWith('Arts:') ? 'Arts' : 'Patiënt';
+          currentBlock = line.replace(/^(Arts:|Patiënt:)\s*/, '');
+        } else {
+          // Voortzetting van huidige speaker
+          currentBlock += ' ' + line;
+        }
+      });
+      
+      // Voeg laatste block toe
+      if (currentBlock) {
+        blocks.push({ speaker: currentSpeaker, content: currentBlock.trim() });
+      }
+      
+      // Filter duplicates - gebruik eerste 30 chars als "fingerprint"
+      const uniqueBlocks = [];
+      const seen = new Set();
+      
+      blocks.forEach(block => {
+        if (!block.content) return;
+        
+        // Maak een fingerprint van de content (eerste 30 chars, lowercase, zonder punctuatie)
+        const fingerprint = block.content
+          .substring(0, 30)
+          .toLowerCase()
+          .replace(/[^\w\s]/g, '')
+          .trim();
+        
+        if (fingerprint && !seen.has(fingerprint)) {
+          seen.add(fingerprint);
+          uniqueBlocks.push(block);
+        } else if (fingerprint) {
+          console.log(`🗑️ Duplicate verwijderd: "${block.content.substring(0, 50)}..."`);
+        }
+      });
+      
+      // Herbouw de tekst zonder duplicates
+      return uniqueBlocks
+        .map(block => `${block.speaker}: ${block.content}`)
+        .join('\n\n');
+    }
+
     function formatSpeakerText(text) {
       if (!text || !text.includes('Arts:') && !text.includes('Patiënt:')) {
         // No speaker labels, return as plain text
@@ -1010,7 +1071,7 @@
             const content = line.substring(5).trim();
             return `
               <div style="margin: 1rem 0;">
-                <div style="color: #1e40af; font-weight: 600; font-size: 0.95rem; margin-bottom: 0.25rem;"> Arts:</div>
+                <div style="color: #1e40af; font-weight: 600; font-size: 0.95rem; margin-bottom: 0.25rem;">Arts:</div>
                 <div style="color: #1e3a8a; padding-left: 1rem; line-height: 1.5; border-left: 3px solid #3b82f6; padding-left: 0.75rem;">${content}</div>
               </div>
             `;
@@ -1042,14 +1103,48 @@
           container.classList.add('expanding');
         }
         
-        const wordCount = text.split(' ').length;
-        const totalWordCount = pinnedTranscriptText ? pinnedTranscriptText.split(' ').length + wordCount : wordCount;
+        // 📌 VERWIJDER DUPLICATES uit gepinde + live tekst
+        const cleanedPinned = pinnedTranscriptText ? removeDuplicates(pinnedTranscriptText) : '';
+        const cleanedLive = removeDuplicates(text);
+        
+        // Als we zowel gepinde als live tekst hebben, verwijder ook duplicates tussen beide
+        let finalPinned = cleanedPinned;
+        let finalLive = cleanedLive;
+        
+        if (cleanedPinned && cleanedLive) {
+          // Combineer alles en verwijder duplicates
+          const combined = cleanedPinned + '\n\n' + cleanedLive;
+          const cleanedCombined = removeDuplicates(combined);
+          
+          // Split weer in gepind en live
+          // Houd alleen de nieuwe content in live die niet in gepind zit
+          const pinnedBlocks = cleanedPinned.split('\n\n').filter(b => b.trim());
+          const allBlocks = cleanedCombined.split('\n\n').filter(b => b.trim());
+          
+          // Bepaal welke blokken nieuw zijn (niet in pinnedBlocks)
+          const pinnedFingerprints = new Set();
+          pinnedBlocks.forEach(block => {
+            const fp = block.substring(0, 30).toLowerCase().replace(/[^\w\s]/g, '').trim();
+            pinnedFingerprints.add(fp);
+          });
+          
+          const liveBlocks = allBlocks.filter(block => {
+            const fp = block.substring(0, 30).toLowerCase().replace(/[^\w\s]/g, '').trim();
+            return !pinnedFingerprints.has(fp);
+          });
+          
+          finalPinned = cleanedPinned;
+          finalLive = liveBlocks.join('\n\n');
+        }
+        
+        const wordCount = finalLive.split(' ').length;
+        const totalWordCount = finalPinned ? finalPinned.split(' ').length + wordCount : wordCount;
         
         // 📌 PIN MECHANIC: Toon gepinde tekst bovenaan, dan live tekst
         let displayHTML = '';
         
-        if (pinnedTranscriptText) {
-          const formattedPinned = formatSpeakerText(pinnedTranscriptText);
+        if (finalPinned) {
+          const formattedPinned = formatSpeakerText(finalPinned);
           displayHTML += `
             <div style="word-wrap: break-word; padding-bottom: 1rem; border-bottom: 2px dashed rgba(59, 130, 246, 0.3); margin-bottom: 1rem;">
               <div style="display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%); color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; margin-bottom: 0.5rem;">
@@ -1060,10 +1155,10 @@
           `;
         }
         
-        const formattedText = formatSpeakerText(text);
+        const formattedText = formatSpeakerText(finalLive);
         displayHTML += `
           <div style="word-wrap: break-word;">
-            ${pinnedTranscriptText ? '<div style="display: inline-block; background: rgba(16, 185, 129, 0.1); color: #059669; padding: 4px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; margin-bottom: 0.5rem; border: 1px solid rgba(16, 185, 129, 0.3);">🔴 LIVE TRANSCRIPTIE</div>' : ''}
+            ${finalPinned ? '<div style="display: inline-block; background: rgba(16, 185, 129, 0.1); color: #059669; padding: 4px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; margin-bottom: 0.5rem; border: 1px solid rgba(16, 185, 129, 0.3);">🔴 LIVE TRANSCRIPTIE</div>' : ''}
             ${formattedText}
           </div>
           <div class="typing-indicator" style="margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(8, 145, 178, 0.2); color: #0891b2; font-size: 0.9rem;">
@@ -1108,6 +1203,7 @@
          // 📌 PIN MECHANIC: Reset gepinde tekst bij nieuwe opname
          pinnedTranscriptText = '';
          lastTranscriptionLength = 0;
+         seenSentences.clear(); // Reset seen sentences voor nieuwe opname
          
          audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
          batchChunks = [];
@@ -1249,6 +1345,7 @@
        // 📌 PIN MECHANIC: Reset gepinde tekst bij cancel
        pinnedTranscriptText = '';
        lastTranscriptionLength = 0;
+       seenSentences.clear(); // Reset seen sentences
        // Clear PCM ring and teardown
        pcmRingBuffer = [];
        try {
@@ -1313,6 +1410,11 @@
           fullTranscription = pinnedTranscriptText + '\n\n' + fullTranscription;
           console.log(`📌 SOEP gebruikt gepinde tekst + batch transcriptie (${fullTranscription.split(' ').length} woorden totaal)`);
         }
+        
+        // 🗑️ Verwijder duplicates uit de volledige transcriptie voor SOEP
+        fullTranscription = removeDuplicates(fullTranscription);
+        console.log(`✨ Na duplicate verwijdering: ${fullTranscription.split(' ').length} woorden`);
+        
         document.getElementById('text-input').value = fullTranscription;
         
         // Auto-generate SOEP
