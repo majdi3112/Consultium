@@ -767,10 +767,9 @@
     // No special WebM header handling for realtime chunks
     let isSendingRealtime = false;
 
-    // 📌 Incremental transcript accumulation (backend sends only NEW text)
-    let accumulatedTranscript = '';
-    let realtimeSessionId = '';
-    let totalRtChunksSeen = 0;
+    // 📌 PIN MECHANIC: Automatisch oude transcripties bewaren
+    let pinnedTranscriptText = ''; // Bevat alle gepinde (oude) transcripties
+    let lastTranscriptionLength = 0; // Track lengte om te detecteren wanneer tekst verdwijnt
 
     // WAV-based realtime capture (PCM ring buffer at 16kHz)
     let audioContext = null;
@@ -892,7 +891,6 @@
 
         const formData = new FormData();
         formData.append('audio_chunk', wavBlob, 'chunk.wav');
-        formData.append('session_id', realtimeSessionId);
 
         const response = await fetch('https://cf33330a7735.ngrok-free.app/realtime-transcribe', {
           method: 'POST',
@@ -912,21 +910,48 @@
           console.log(`🔍 Full server result:`, JSON.stringify(result, null, 2));
           
           if (result.transcription && result.transcription.trim()) {
-            const newTextIncremental = result.transcription.trim();
-            console.log(`📝 NEW incremental text from backend: "${newTextIncremental}" (${newTextIncremental.length} chars)`);
+            const newText = result.transcription.trim();
+            console.log(`📝 Raw transcription: "${newText}" (${newText.length} chars)`);
+            console.log(`📊 Previous text length: ${liveTranscriptionText.length} chars`);
             
-            // Append new text to accumulated transcript
-            if (newTextIncremental) {
-              const joiner = accumulatedTranscript && !accumulatedTranscript.endsWith('\n') ? '\n' : '';
-              accumulatedTranscript = accumulatedTranscript + (accumulatedTranscript ? joiner : '') + newTextIncremental;
-              console.log(`✅ Appended to accumulated transcript (total: ${accumulatedTranscript.length} chars)`);
+            // Check if this appears to be speaker-formatted content
+            const hasSpeakerLabels = newText.includes('Arts:') || newText.includes('Patiënt:');
+            
+            // REPLACEMENT STRATEGY: Each chunk contains the complete transcription
+            // Only update if this transcription is longer/different than what we have
+            if (newText.length > liveTranscriptionText.length || newText !== liveTranscriptionText) {
+              console.log(`✅ REPLACING with complete transcription: "${newText.substring(0, 100)}..."`);
+              
+              if (hasSpeakerLabels) {
+                console.log(`🎭 Speaker-formatted content detected! Arts/Patiënt labels found.`);
+              }
+              
+              // REPLACE the entire transcription with the new complete one
+              liveTranscriptionText = newText;
+              lastTranscriptionLength = newText.length;
+              
+              updateLiveTranscriptionDisplay(liveTranscriptionText);
+            } else if (newText.length < liveTranscriptionText.length && liveTranscriptionText.length > 100) {
+              // 📌 PIN MECHANIC: Tekst wordt korter = oude tekst valt buiten window!
+              // Pin de huidige tekst voordat deze verdwijnt
+              console.log(`📌 PINNING oude transcriptie (${liveTranscriptionText.length} chars) - nieuwe is korter (${newText.length} chars)`);
+              
+              // Voeg oude tekst toe aan pinnedTranscriptText (alleen als het nog niet gepind is)
+              if (!pinnedTranscriptText.includes(liveTranscriptionText.substring(0, 50))) {
+                pinnedTranscriptText += (pinnedTranscriptText ? '\n\n' : '') + liveTranscriptionText;
+                console.log(`✅ Gepind! Totaal gepinde tekst: ${pinnedTranscriptText.length} chars`);
+              }
+              
+              // Update naar nieuwe (kortere) live transcriptie
+              liveTranscriptionText = newText;
+              lastTranscriptionLength = newText.length;
+              
+              updateLiveTranscriptionDisplay(liveTranscriptionText);
+            } else {
+              console.log(`🔄 Keeping existing transcription (same or shorter)`);
+              // Still update display to show we're active with timestamp
+              updateLiveTranscriptionDisplay(liveTranscriptionText);
             }
-            
-            // Update liveTranscriptionText for SOEP (keep unchanged for batch flow)
-            liveTranscriptionText = accumulatedTranscript;
-            
-            // Display accumulated transcript
-            updateLiveTranscriptionDisplay(accumulatedTranscript);
           } else {
             console.log(`⚠️ Empty transcription - server result:`, result);
             console.log(`📊 Current text: "${liveTranscriptionText}" (${liveTranscriptionText.length} chars)`);
@@ -995,19 +1020,41 @@
       const currentTime = new Date().toLocaleTimeString();
       
       if (text && text.trim() && text.trim() !== '🎤 Luister mee...') {
-        if (text.length > 100) {
+        if (text.length > 100 || pinnedTranscriptText.length > 0) {
           container.classList.add('expanding');
         }
         
         const wordCount = text.split(' ').length;
+        const totalWordCount = pinnedTranscriptText ? pinnedTranscriptText.split(' ').length + wordCount : wordCount;
+        
+        // 📌 PIN MECHANIC: Toon gepinde tekst bovenaan, dan live tekst
+        let displayHTML = '';
+        
+        if (pinnedTranscriptText) {
+          const formattedPinned = formatSpeakerText(pinnedTranscriptText);
+          displayHTML += `
+            <div style="word-wrap: break-word; padding-bottom: 1rem; border-bottom: 2px dashed rgba(59, 130, 246, 0.3); margin-bottom: 1rem;">
+              <div style="display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%); color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; margin-bottom: 0.5rem;">
+                📌 GEPINDE TRANSCRIPTIE
+              </div>
+              ${formattedPinned}
+            </div>
+          `;
+        }
+        
         const formattedText = formatSpeakerText(text);
-        display.innerHTML = `
-          <div style="word-wrap: break-word;">${formattedText}</div>
+        displayHTML += `
+          <div style="word-wrap: break-word;">
+            ${pinnedTranscriptText ? '<div style="display: inline-block; background: rgba(16, 185, 129, 0.1); color: #059669; padding: 4px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; margin-bottom: 0.5rem; border: 1px solid rgba(16, 185, 129, 0.3);">🔴 LIVE TRANSCRIPTIE</div>' : ''}
+            ${formattedText}
+          </div>
           <div class="typing-indicator" style="margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(8, 145, 178, 0.2); color: #0891b2; font-size: 0.9rem;">
-            <span style="animation: pulse 1.5s infinite;">● Live transcriptie actief - ${wordCount} woorden</span>
+            <span style="animation: pulse 1.5s infinite;">● Live transcriptie actief - ${totalWordCount} woorden totaal</span>
             <span style="float: right; opacity: 0.7;">${currentTime}</span>
           </div>
         `;
+        
+        display.innerHTML = displayHTML;
       } else {
         container.classList.remove('expanding');
         display.innerHTML = `
@@ -1031,7 +1078,7 @@
       
       const wordCountLog = text ? text.split(' ').length : 0;
       if (wordCountLog > 0) {
-        console.log(`📊 Transcriptie progress: ${wordCountLog} woorden, ${text.length} characters`);
+        console.log(`📊 Transcriptie progress: ${wordCountLog} woorden (live), ${pinnedTranscriptText ? pinnedTranscriptText.split(' ').length + ' woorden (gepind)' : '0 gepind'}`);
       }
     }
 
@@ -1040,9 +1087,9 @@
          // Reset cancellation flag at start
          recordingCancelled = false;
          liveTranscriptionText = '';
-         accumulatedTranscript = '';
-         totalRtChunksSeen = 0;
-         realtimeSessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+         // 📌 PIN MECHANIC: Reset gepinde tekst bij nieuwe opname
+         pinnedTranscriptText = '';
+         lastTranscriptionLength = 0;
          
          audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
          batchChunks = [];
@@ -1066,8 +1113,7 @@
          // Realtime recorder handler
          mediaRecorderRealtime.ondataavailable = event => {
            if (event.data.size > 0 && !recordingCancelled) {
-             totalRtChunksSeen++; // Track total chunks received
-             console.log(`🎵 RT chunk: ${event.data.size} bytes (total seen: ${totalRtChunksSeen}, buffer: ${realtimeChunks.length + 1})`);
+             console.log(`🎵 RT chunk: ${event.data.size} bytes (buffer: ${realtimeChunks.length + 1})`);
              realtimeChunks.push(event.data);
              // Keep only last 10 chunks in buffer immediately for consistent windowing
              const MAX_RT_CHUNKS = 10;
@@ -1182,9 +1228,9 @@
        batchChunks = [];
        realtimeChunks = [];
        liveTranscriptionText = '';
-       accumulatedTranscript = '';
-       totalRtChunksSeen = 0;
-       realtimeSessionId = '';
+       // 📌 PIN MECHANIC: Reset gepinde tekst bij cancel
+       pinnedTranscriptText = '';
+       lastTranscriptionLength = 0;
        // Clear PCM ring and teardown
        pcmRingBuffer = [];
        try {
@@ -1242,7 +1288,14 @@
         }
         
         // Set transcribed text (Azure-corrected from backend)
-        document.getElementById('text-input').value = result.transcription || '';
+        // 📌 PIN MECHANIC: Combineer gepinde + live transcriptie voor SOEP
+        let fullTranscription = result.transcription || '';
+        if (pinnedTranscriptText && liveTranscriptionText) {
+          // Als we gepinde tekst hebben, combineer deze met de batch transcriptie
+          fullTranscription = pinnedTranscriptText + '\n\n' + fullTranscription;
+          console.log(`📌 SOEP gebruikt gepinde tekst + batch transcriptie (${fullTranscription.split(' ').length} woorden totaal)`);
+        }
+        document.getElementById('text-input').value = fullTranscription;
         
         // Auto-generate SOEP
         await generateSOEP();
