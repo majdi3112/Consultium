@@ -11,6 +11,15 @@
     /* Custom styles */
     * { font-family: 'Inter', sans-serif; }
     
+    /* Subtle Windows-style blue gradient background */
+    body {
+      background:
+        radial-gradient(900px 480px at 15% 15%, rgba(147, 197, 253, 0.22) 0%, rgba(147, 197, 253, 0.00) 60%),
+        radial-gradient(900px 520px at 85% 80%, rgba(125, 211, 252, 0.20) 0%, rgba(125, 211, 252, 0.00) 60%),
+        linear-gradient(180deg, #fbfdff 0%, #f6faff 100%);
+      background-attachment: fixed;
+    }
+    
     /* Loading overlay */
     #loading-overlay {
       position: fixed;
@@ -61,6 +70,17 @@
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
       border: 1px solid #e5e7eb;
       transition: all 0.3s ease;
+    }
+    
+    /* Elevated white surface with light blue gradient shadow */
+    .page-surface {
+      background: #ffffff;
+      border-radius: 1.25rem; /* ~20px */
+      box-shadow:
+        0 60px 120px -40px rgba(2, 132, 199, 0.18), /* large soft blue glow */
+        0 24px 48px -28px rgba(30, 41, 59, 0.18),     /* neutral depth */
+        0 0 0 1px rgba(14, 165, 233, 0.08) inset;     /* subtle inner ring */
+      border: 1px solid rgba(226, 232, 240, 0.7);
     }
     
     .feature-card:hover {
@@ -342,7 +362,7 @@
   </div>
 
   <!-- Main Content -->
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <main class="page-surface max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     
     <!-- Dashboard Tab -->
     <div id="dashboard-tab" class="tab-content">
@@ -687,7 +707,7 @@
       showLoading(true);
 
     try {
-        const response = await fetch('https://4a41be3e8df3.ngrok-free.app/generate-soep', {
+        const response = await fetch('https://a1eb67d838f5.ngrok-free.app/generate-soep', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: promptText })
@@ -886,7 +906,7 @@
         const formData = new FormData();
         formData.append('audio_chunk', wavBlob, 'chunk.wav');
 
-        const response = await fetch('https://4a41be3e8df3.ngrok-free.app/realtime-transcribe', {
+        const response = await fetch('https://a1eb67d838f5.ngrok-free.app/realtime-transcribe', {
           method: 'POST',
           body: formData
         });
@@ -1225,7 +1245,7 @@
       showLoading(true);
       
       try {
-        const response = await fetch('https://4a41be3e8df3.ngrok-free.app/transcribe-audio', {
+        const response = await fetch('https://a1eb67d838f5.ngrok-free.app/transcribe-audio', {
           method: 'POST',
           body: formData
         });
@@ -1327,7 +1347,7 @@
           updateTolkStatus('Verbinding maken…', 'bg-yellow-100 text-yellow-700');
 
           // 1) Fetch ephemeral token from backend
-          const sessionResp = await fetch('https://4a41be3e8df3.ngrok-free.app/session', { method: 'POST' });
+          const sessionResp = await fetch('https://a1eb67d838f5.ngrok-free.app/session', { method: 'POST' });
           const sessionData = await sessionResp.json();
           if (!sessionResp.ok || sessionData.error) throw new Error(sessionData.error || 'Session error');
           const ephemeral = sessionData?.client_secret?.value;
@@ -1361,8 +1381,8 @@
 
           // 5) Send offer to OpenAI Realtime to get answer
           const sdpResp = await fetch('https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17', {
-            method: 'POST',
-            headers: {
+           method: 'POST',
+           headers: {
               'Authorization': `Bearer ${ephemeral}`,
               'Content-Type': 'application/sdp',
               'OpenAI-Beta': 'realtime=v1'
@@ -1440,7 +1460,7 @@
        }
      }
 
-      // Initialize intelligent tolk when page loads
+     // Initialize intelligent tolk when page loads
      document.addEventListener('DOMContentLoaded', function() {
         setTolkLogoSrc();
        // Update language displays when selections change
@@ -1457,7 +1477,7 @@
        // Initial update
        updateLanguageDisplays();
        
-        // Single record button event listeners
+       // Single record button event listeners
        const tolkBtn = document.getElementById('tolk-record-btn');
        
        if (tolkBtn) {
@@ -1508,7 +1528,7 @@
             const formData = new FormData();
             formData.append('file', blob, 'tolk-session.webm');
 
-            const trResp = await fetch('https://4a41be3e8df3.ngrok-free.app/transcribe-audio-raw', { method: 'POST', body: formData });
+            const trResp = await fetch('https://a1eb67d838f5.ngrok-free.app/transcribe-audio-raw', { method: 'POST', body: formData });
             const trJson = await trResp.json();
             if (!trResp.ok || trJson.error) { throw new Error(trJson.error || 'Transcriptie mislukt'); }
 
@@ -1516,7 +1536,7 @@
             if (!transcript) { throw new Error('Lege transcriptie ontvangen'); }
 
             // Genereer SOEP met dezelfde backend als SOEP‑pagina
-            const soepResp = await fetch('https://4a41be3e8df3.ngrok-free.app/generate-soep', {
+            const soepResp = await fetch('https://a1eb67d838f5.ngrok-free.app/generate-soep', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ prompt: transcript })
