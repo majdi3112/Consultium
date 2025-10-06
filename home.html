@@ -689,7 +689,7 @@
       showLoading(true);
 
     try {
-        const response = await fetch('https://64d1e0f7da73.ngrok-free.app/generate-soep', {
+        const response = await fetch('https://69a39588776a.ngrok-free.app/generate-soep', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: promptText })
@@ -767,6 +767,12 @@
     // No special WebM header handling for realtime chunks
     let isSendingRealtime = false;
 
+    // Sentence locking state (frontend-only)
+    let lockedPrefixText = '';
+    let lastModelOutput = '';
+    let haveReachedTenChunkWindow = false;
+    const MAX_LOCK_SENTENCES = 2; // lock first 1-2 sentences when stable
+
     // WAV-based realtime capture (PCM ring buffer at 16kHz)
     let audioContext = null;
     let sourceNode = null;
@@ -776,65 +782,6 @@
     const TARGET_SAMPLE_RATE = 16000;
     const WINDOW_SECONDS = 15; // ~last 10 chunks (1.5s tick)
     const MAX_BUFFER_SECONDS = 20;
-
-    // --- Final+Live stabilization state (commit stable prefix over rolling window) ---
-    let finalTranscriptStable = '';
-    let windowHistoryTexts = [];
-    const STAB_MAX_WINDOWS = 2; // require stability across 2 consecutive windows
-
-    const normalizeText = (s) =>
-      (s || '')
-        .replace(/\s+/g, ' ')
-        .replace(/[\u2018\u2019]/g, "'")
-        .replace(/[\u201C\u201D]/g, '"')
-        .trim();
-
-    const splitSentences = (s) => {
-      const parts = normalizeText(s).split(/(?<=[\.!?…]["'\)\]]?)\s+/);
-      return parts.filter(Boolean);
-    };
-
-    const commonSentencePrefix = (a, b) => {
-      const A = splitSentences(a), B = splitSentences(b);
-      const out = [];
-      const len = Math.min(A.length, B.length);
-      for (let i = 0; i < len; i++) {
-        if (A[i] === B[i]) out.push(A[i]); else break;
-      }
-      return out.join(' ');
-    };
-
-    const stripPrefixSentences = (full, prefix) => {
-      if (!prefix) return full;
-      const pf = splitSentences(prefix).join(' ');
-      const ff = splitSentences(full).join(' ');
-      if (ff.startsWith(pf)) {
-        const rest = ff.slice(pf.length).trimStart();
-        return rest;
-      }
-      return full;
-    };
-
-    function onNewWindowText(windowTextRaw) {
-      const windowText = normalizeText(windowTextRaw);
-      windowHistoryTexts.push(windowText);
-      if (windowHistoryTexts.length > STAB_MAX_WINDOWS) windowHistoryTexts.shift();
-
-      if (windowHistoryTexts.length >= 2) {
-        const last = windowHistoryTexts[windowHistoryTexts.length - 1];
-        const prev = windowHistoryTexts[windowHistoryTexts.length - 2];
-        const stablePrefix = commonSentencePrefix(prev, last);
-        if (stablePrefix) {
-          finalTranscriptStable = (finalTranscriptStable + (finalTranscriptStable ? ' ' : '') + stablePrefix).trim();
-          windowHistoryTexts = windowHistoryTexts.map(w => stripPrefixSentences(w, stablePrefix));
-        }
-      }
-
-      const live = windowHistoryTexts[windowHistoryTexts.length - 1] || '';
-      // Keep a combined copy for other flows
-      liveTranscriptionText = (finalTranscriptStable + (finalTranscriptStable && live ? ' ' : '') + live).trim();
-      renderFinalAndLive(finalTranscriptStable, live);
-    }
 
     function downsampleTo16k(float32, originalRate) {
       if (originalRate === TARGET_SAMPLE_RATE) return float32;
@@ -947,7 +894,7 @@
         const formData = new FormData();
         formData.append('audio_chunk', wavBlob, 'chunk.wav');
 
-        const response = await fetch('https://64d1e0f7da73.ngrok-free.app/realtime-transcribe', {
+        const response = await fetch('https://69a39588776a.ngrok-free.app/realtime-transcribe', {
           method: 'POST',
           body: formData
         });
@@ -972,13 +919,46 @@
             // Check if this appears to be speaker-formatted content
             const hasSpeakerLabels = newText.includes('Arts:') || newText.includes('Patiënt:');
             
-            // Stabilization: feed newest window into stabilizer
-            onNewWindowText(newText);
+            // REPLACEMENT STRATEGY: Each chunk contains the complete transcription
+            // Only update if this transcription is longer/different than what we have
+            if (newText.length > liveTranscriptionText.length || newText !== liveTranscriptionText) {
+              console.log(`✅ REPLACING with complete transcription: "${newText.substring(0, 100)}..."`);
+              
+              if (hasSpeakerLabels) {
+                console.log(`🎭 Speaker-formatted content detected! Arts/Patiënt labels found.`);
+              }
+              
+              // Update locking window tracking (10-chunk window is maintained elsewhere)
+              haveReachedTenChunkWindow = haveReachedTenChunkWindow || (realtimeChunks && realtimeChunks.length >= 10);
+
+              // Compare with previous model output and lock prefix sentences when stable
+              if (haveReachedTenChunkWindow) {
+                const newlyLocked = computeStableLeadingSentences(lastModelOutput, newText, MAX_LOCK_SENTENCES);
+                if (newlyLocked) {
+                  // Avoid duplicating already locked prefix
+                  if (!lockedPrefixText || !newlyLocked.startsWith(lockedPrefixText)) {
+                    lockedPrefixText = newlyLocked;
+                  }
+                }
+              }
+
+              lastModelOutput = newText;
+
+              // REPLACE the entire transcription with the new complete one
+              liveTranscriptionText = newText;
+              
+              updateLiveTranscriptionDisplay(lockedPrefixText ? (lockedPrefixText + newText.substring(lockedPrefixText.length)) : liveTranscriptionText);
+            } else {
+              console.log(`🔄 Keeping existing transcription (same or shorter)`);
+              // Still update display to show we're active with timestamp
+              updateLiveTranscriptionDisplay(lockedPrefixText ? (lockedPrefixText + liveTranscriptionText.substring(lockedPrefixText.length)) : liveTranscriptionText);
+            }
           } else {
             console.log(`⚠️ Empty transcription - server result:`, result);
             console.log(`📊 Current text: "${liveTranscriptionText}" (${liveTranscriptionText.length} chars)`);
             // Update display to show we're still listening (but keep existing text)
-            renderFinalAndLive(finalTranscriptStable, windowHistoryTexts[windowHistoryTexts.length - 1] || '');
+            const displayText = liveTranscriptionText || '🎤 Luister mee...';
+            updateLiveTranscriptionDisplay(lockedPrefixText ? (lockedPrefixText + displayText.substring(lockedPrefixText.length)) : displayText);
           }
         } else if (result.status === 'skipped' || result.status === 'error') {
           console.log('❌ Chunk processing failed:', result);
@@ -1034,43 +1014,6 @@
         .join('');
     }
 
-    function renderFinalAndLive(finalText, liveText) {
-      const display = document.getElementById('live-transcript-content');
-      const container = document.getElementById('live-transcription-display');
-      const currentTime = new Date().toLocaleTimeString();
-
-      const combined = [finalText, liveText].filter(Boolean).join(' ').trim();
-      const hasContent = combined.length > 0;
-      if (hasContent && combined.length > 100) {
-        container.classList.add('expanding');
-      } else {
-        container.classList.remove('expanding');
-      }
-
-      if (!hasContent) {
-        display.innerHTML = `
-          <div class="typing-indicator" style="color: #0891b2; font-size: 1.1rem;">
-            <span style="animation: pulse 1.5s infinite;">🎤 Luister mee - begin met spreken...</span>
-            <div style="margin-top: 4px; font-size: 0.9rem; opacity: 0.7;">${currentTime}</div>
-          </div>
-        `;
-        return;
-      }
-
-      const finalHtml = finalText ? `<div class="live-transcript-text" style="color:#64748b;">${formatSpeakerText(finalText)}</div>` : '';
-      const liveHtml  = liveText  ? `<div class="live-transcript-text" style="color:#0c4a6e;">${formatSpeakerText(liveText)}</div>`  : '';
-      const wordCount = combined.split(' ').length;
-      display.innerHTML = `
-        <div style="word-wrap: break-word;">${finalHtml}${liveHtml}</div>
-        <div class="typing-indicator" style="margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(8, 145, 178, 0.2); color: #0891b2; font-size: 0.9rem;">
-          <span style="animation: pulse 1.5s infinite;">● Live transcriptie actief - ${wordCount} woorden</span>
-          <span style="float: right; opacity: 0.7;">${currentTime}</span>
-        </div>
-      `;
-      container.scrollTop = container.scrollHeight;
-      setTimeout(() => { container.scrollTop = container.scrollHeight; }, 100);
-    }
-
     // Removed typing animation for live transcription for instant updates
 
     function updateLiveTranscriptionDisplay(text) {
@@ -1085,8 +1028,14 @@
         
         const wordCount = text.split(' ').length;
         const formattedText = formatSpeakerText(text);
+        const lockedHtml = lockedPrefixText ? `<div style="opacity: 0.9;">${formatSpeakerText(lockedPrefixText)}</div>` : '';
+        const liveRemainder = lockedPrefixText && text.startsWith(lockedPrefixText) ? text.substring(lockedPrefixText.length) : text;
+        const liveHtml = formatSpeakerText(liveRemainder);
         display.innerHTML = `
-          <div style="word-wrap: break-word;">${formattedText}</div>
+          <div style="word-wrap: break-word;">
+            ${lockedHtml ? `<div style=\"border-left: 4px solid #34d399; padding-left: 8px; margin-bottom: 8px;\">${lockedHtml}</div>` : ''}
+            <div>${liveHtml}</div>
+          </div>
           <div class="typing-indicator" style="margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(8, 145, 178, 0.2); color: #0891b2; font-size: 0.9rem;">
             <span style="animation: pulse 1.5s infinite;">● Live transcriptie actief - ${wordCount} woorden</span>
             <span style="float: right; opacity: 0.7;">${currentTime}</span>
@@ -1124,8 +1073,9 @@
          // Reset cancellation flag at start
          recordingCancelled = false;
          liveTranscriptionText = '';
-         finalTranscriptStable = '';
-         windowHistoryTexts = [];
+         lockedPrefixText = '';
+         lastModelOutput = '';
+         haveReachedTenChunkWindow = false;
          
          audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
          batchChunks = [];
@@ -1264,8 +1214,9 @@
        batchChunks = [];
        realtimeChunks = [];
        liveTranscriptionText = '';
-       finalTranscriptStable = '';
-       windowHistoryTexts = [];
+      lockedPrefixText = '';
+      lastModelOutput = '';
+      haveReachedTenChunkWindow = false;
        // Clear PCM ring and teardown
        pcmRingBuffer = [];
        try {
@@ -1289,6 +1240,37 @@
        console.log('Recording cancelled by user');
      }
 
+    // Helper: compute stable leading sentences between two model outputs
+    function computeStableLeadingSentences(prev, curr, maxSentences) {
+      if (!prev || !curr) return '';
+      const prevSentences = splitIntoSentences(prev);
+      const currSentences = splitIntoSentences(curr);
+      let stable = [];
+      const limit = Math.min(maxSentences, currSentences.length, prevSentences.length);
+      for (let i = 0; i < limit; i++) {
+        if (normalizeSentence(prevSentences[i]) === normalizeSentence(currSentences[i])) {
+          stable.push(currSentences[i]);
+        } else {
+          break;
+        }
+      }
+      // Return concatenated stable prefix with trailing space
+      return stable.length ? stable.join(' ').trim() + (curr.startsWith(stable.join(' ')) ? '' : ' ') : '';
+    }
+
+    function splitIntoSentences(text) {
+      // Basic sentence segmentation suited for Dutch with ., !, ?, and newline breaks
+      const parts = text
+        .replace(/\s+/g, ' ')
+        .split(/(?<=[\.!?])\s+/);
+      // Merge tiny fragments that result from abbreviations edge-cases
+      return parts.filter(Boolean);
+    }
+
+    function normalizeSentence(s) {
+      return (s || '').trim().replace(/\s+/g, ' ');
+    }
+
          async function handleRecordingStop() {
        // Check if recording was cancelled
        if (recordingCancelled) {
@@ -1311,7 +1293,7 @@
       showLoading(true);
       
       try {
-        const response = await fetch('https://64d1e0f7da73.ngrok-free.app/transcribe-audio', {
+        const response = await fetch('https://69a39588776a.ngrok-free.app/transcribe-audio', {
           method: 'POST',
           body: formData
         });
@@ -1439,7 +1421,7 @@
          const language2 = document.getElementById('language-2').value;
          
          // Send to AI for intelligent language detection and translation
-         const response = await fetch('https://64d1e0f7da73.ngrok-free.app/intelligent-translate', {
+         const response = await fetch('https://69a39588776a.ngrok-free.app/intelligent-translate', {
            method: 'POST',
            headers: {
              'Content-Type': 'application/json',
