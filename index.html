@@ -7,28 +7,31 @@
   <title>Inloggen – Consultium</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    const backendURL = "https://b75c-2001-1c00-9901-3500-5076-b48e-d0a-14b3.ngrok-free.app"; // 🔥 Jouw ngrok-link hier ingevuld
+    const API_BASE = 'https://ebf0676e069d.ngrok-free.app';
+    const endpoints = {
+      login: API_BASE + '/api/login'
+    };
 
     async function handleLogin(event) {
       event.preventDefault();
-      const email = document.getElementById("email").value;
+      const username = document.getElementById("username").value;
       const password = document.getElementById("password").value;
 
       try {
-        const response = await fetch(backendURL + "/api/login", {  <!-- 🔥 Belangrijk -->
+        const response = await fetch(endpoints.login, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include", // 🔥 Nodig voor sessies
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ username, password }),
         });
 
         const data = await response.json();
 
-        if (data.error) {
-          alert("❌ Onjuiste e-mail of wachtwoord.");
-        } else {
+        if (response.ok && data.success) {
           sessionStorage.setItem("user_logged_in", "true");
-          window.location.href = "home.html";
+          window.location.href = "/home";
+        } else {
+          alert(data.error || "❌ Onjuiste gebruikersnaam of wachtwoord.");
         }
 
       } catch (error) {
@@ -41,22 +44,20 @@
 
 <body class="bg-gray-50 min-h-screen flex flex-col items-center justify-center py-8 font-inter select-none focus:outline-none">
   <div class="w-full max-w-md bg-white p-10 rounded-2xl shadow-2xl">
-       <!-- FULL LOGO -->
-  <img
-      src="static/images/full-logo.png"
-      alt="Consultium logo"
-      class="mx-auto mb-6 transform origin-center"
-  />
+       <!-- LOGO STATIC -->
+    <div class="flex items-center space-x-3">
+          <img src="static/images/logo.png" alt="Consultium AI" class="h-32 w-auto">
+    </div>
     <h1 class="text-2xl font-semibold mb-6 text-center">Log in op jouw account</h1>
     <form onsubmit="handleLogin(event)" class="space-y-4">
       <div>
-        <label for="email" class="block text-gray-700">E-mail</label>
-        <input type="email" id="email" required
+        <label for="username" class="block text-gray-700">Gebruikersnaam</label>
+        <input type="text" id="username" required autocomplete="username"
                class="w-full mt-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"/>
       </div>
       <div>
         <label for="password" class="block text-gray-700">Wachtwoord</label>
-        <input type="password" id="password" required
+        <input type="password" id="password" required autocomplete="current-password"
                class="w-full mt-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"/>
       </div>
       <button type="submit"
@@ -64,10 +65,7 @@
         Inloggen
       </button>
     </form>
-    <p class="mt-4 text-center text-gray-600">
-      Nog geen account?
-      <a href="register.html" class="text-blue-600 hover:underline">Registreer hier</a>
-    </p>
+    <!-- Registratie verborgen -->
   </div>
 </body>
 </html>
